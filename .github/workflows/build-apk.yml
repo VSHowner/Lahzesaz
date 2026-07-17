@@ -5,25 +5,42 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
+
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
+
 
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y python3-pip git zip unzip openjdk-17-jdk
+
+        sudo apt install -y \
+          python3-pip \
+          git \
+          zip \
+          unzip \
+          openjdk-17-jdk \
+          autoconf \
+          automake \
+          libtool \
+          libtool-bin \
+          pkg-config \
+          autoconf-archive
+
 
     - name: Install Buildozer
       run: |
         pip3 install --user buildozer
         pip3 install cython==0.29.36
 
+
     - name: Build APK
       run: |
         ~/.local/bin/buildozer android debug
+
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
