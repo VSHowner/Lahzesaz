@@ -109,8 +109,8 @@ android.presplash_color = #FDEBEE
 android.permissions = INTERNET, CAMERA, (name=android.permission.READ_EXTERNAL_STORAGE;maxSdkVersion=32), (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=32), READ_MEDIA_IMAGES
 
 # (list) features (adds uses-feature -tags to manifest)
-#android.features = android.hardware.camera.autofocus:required=false
-android.hardware.camera:required=false
+
+
 
 # (int) Target Android API, should be as high as possible.
 android.api = 34
