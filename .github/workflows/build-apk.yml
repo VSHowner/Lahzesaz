@@ -58,20 +58,29 @@ jobs:
         run: |
           pip install \
             setuptools==69.5.1 \
-            wheel \
+            wheel==0.43.0 \
             Cython==0.29.36
 
           pip install \
-            buildozer==1.5.0 \
-            python-for-android==2024.01.21
+            buildozer==1.5.0
 
 
-      # پاک کردن کامل کش‌های Buildozer و pip
       - name: Clean Buildozer cache
         run: |
           rm -rf .buildozer
           rm -rf ~/.buildozer
           rm -rf ~/.cache/pip
+
+
+      - name: Install fixed python-for-android
+        run: |
+          mkdir -p ~/.buildozer/android/platform
+
+          git clone \
+            -b v2024.01.21 \
+            --depth 1 \
+            https://github.com/kivy/python-for-android.git \
+            ~/.buildozer/android/platform/python-for-android
 
 
       - name: Show versions
@@ -80,7 +89,6 @@ jobs:
           pip --version
           cython --version
           buildozer --version
-          python -m pythonforandroid.toolchain --help
 
 
       - name: Build APK
