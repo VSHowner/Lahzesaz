@@ -11,7 +11,7 @@ source.include_patterns = assets/*,assets/**/*,fonts/*,fonts/**/*,logo/*,logo/**
 
 version = 1.0.0
 
-requirements = python3,kivy==2.3.0,requests,pillow,arabic-reshaper,python-bidi,plyer,pyjnius
+requirements = python3==3.11.9,kivy==2.3.0,Cython==0.29.36,requests,pillow==10.2.0,arabic-reshaper,python-bidi,plyer
 
 orientation = portrait
 
