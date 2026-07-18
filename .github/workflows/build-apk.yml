@@ -8,8 +8,10 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
+
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -17,10 +19,12 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11.9"
+          python-version: "3.11"
+
 
       - name: Install Linux dependencies
         run: |
@@ -33,6 +37,8 @@ jobs:
             autoconf \
             automake \
             libtool \
+            libtool-bin \
+            autopoint \
             pkg-config \
             zlib1g-dev \
             libncurses5-dev \
@@ -42,27 +48,39 @@ jobs:
             libsqlite3-dev \
             liblzma-dev
 
-      - name: Install Python packages
+
+      - name: Upgrade pip
         run: |
           python -m pip install --upgrade pip
+
+
+      - name: Install Build tools
+        run: |
           pip install \
             setuptools==69.5.1 \
             wheel \
-            Cython==0.29.36 \
+            Cython==0.29.36
+
+          pip install \
             buildozer==1.5.0 \
             python-for-android==2024.01.21
 
-      - name: Clean previous Buildozer cache
+
+      - name: Clean Buildozer cache
         run: |
           rm -rf .buildozer
           rm -rf ~/.buildozer
+          rm -rf ~/.cache/pip
+
 
       - name: Show versions
         run: |
           python --version
           pip --version
+          cython --version
           buildozer --version
           python -m pythonforandroid.toolchain --help
+
 
       - name: Build APK
         env:
@@ -70,12 +88,14 @@ jobs:
         run: |
           buildozer android debug
 
+
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: LahzeSaz-APK
           path: bin/*.apk
+
 
       - name: Upload build logs
         if: always()
