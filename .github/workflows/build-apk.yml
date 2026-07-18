@@ -8,42 +8,45 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+      - uses: actions/checkout@v4
 
-    - name: Checkout
-      uses: actions/checkout@v5
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install dependencies
-      run: |
-        sudo apt update
+      - name: Install dependencies
+        run: |
+          sudo apt update
 
-        sudo apt install -y \
-          python3-pip \
-          git \
-          zip \
-          unzip \
-          openjdk-17-jdk \
-          autoconf \
-          automake \
-          libtool \
-          libtool-bin \
-          pkg-config \
-          autoconf-archive
+          sudo apt install -y \
+          git zip unzip \
+          autoconf automake \
+          libtool pkg-config \
+          zlib1g-dev \
+          libncurses5 \
+          libffi-dev \
+          libssl-dev
 
+      - name: Install Buildozer
+        run: |
+          python -m pip install --upgrade pip
+          pip install Cython==0.29.36
+          pip install buildozer==1.5.0
+          pip install python-for-android==2024.01.21
 
-    - name: Install Buildozer
-      run: |
-        pip3 install --user buildozer
-        pip3 install cython==0.29.36
+      - name: Build APK
+        run: |
+          buildozer android debug
 
-
-    - name: Build APK
-      run: |
-        ~/.local/bin/buildozer android debug
-
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: LahzeSaz APK
-        path: bin/*.apk
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LahzeSaz-APK
+          path: bin/*.apk
