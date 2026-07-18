@@ -66,6 +66,7 @@ jobs:
             python-for-android==2024.01.21
 
 
+      # پاک کردن کامل کش‌های Buildozer و pip
       - name: Clean Buildozer cache
         run: |
           rm -rf .buildozer
