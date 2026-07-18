@@ -8,9 +8,10 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install Java
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -19,34 +20,68 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.11.9"
 
-      - name: Install dependencies
+      - name: Install Linux dependencies
         run: |
-          sudo apt update
+          sudo apt-get update
 
-          sudo apt install -y \
-          git zip unzip \
-          autoconf automake \
-          libtool pkg-config \
-          zlib1g-dev \
-          libncurses5 \
-          libffi-dev \
-          libssl-dev
+          sudo apt-get install -y \
+            git \
+            zip \
+            unzip \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libffi-dev \
+            libssl-dev \
+            cmake \
+            libsqlite3-dev \
+            liblzma-dev
 
-      - name: Install Buildozer
+      - name: Install Python packages
         run: |
           python -m pip install --upgrade pip
-          pip install Cython==0.29.36
-          pip install buildozer==1.5.0
-          pip install python-for-android==2024.01.21
+          pip install \
+            setuptools==69.5.1 \
+            wheel \
+            Cython==0.29.36 \
+            buildozer==1.5.0 \
+            python-for-android==2024.01.21
+
+      - name: Clean previous Buildozer cache
+        run: |
+          rm -rf .buildozer
+          rm -rf ~/.buildozer
+
+      - name: Show versions
+        run: |
+          python --version
+          pip --version
+          buildozer --version
+          python -m pythonforandroid.toolchain --help
 
       - name: Build APK
+        env:
+          BUILDOZER_LOG_LEVEL: 2
         run: |
           buildozer android debug
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: LahzeSaz-APK
           path: bin/*.apk
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Buildozer-Logs
+          path: |
+            .buildozer/**/*.log
+            .buildozer/**/build.log
