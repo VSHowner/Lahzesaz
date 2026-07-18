@@ -3,31 +3,39 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
+
 jobs:
   build:
+
     runs-on: ubuntu-22.04
 
+
     steps:
+
 
       - name: Checkout
         uses: actions/checkout@v4
 
 
-      - name: Setup Java
+
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
 
-      - name: Setup Python
+
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
 
+
       - name: Install Linux dependencies
         run: |
+
           sudo apt-get update
 
           sudo apt-get install -y \
@@ -49,68 +57,124 @@ jobs:
             liblzma-dev
 
 
+
+      - name: Install Android NDK 25b
+        run: |
+
+          yes | sdkmanager "ndk;25.2.9519653"
+
+          echo "ANDROIDNDK=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+
+
+
       - name: Upgrade pip
         run: |
+
           python -m pip install --upgrade pip
 
 
-      - name: Install Build tools
+
+      - name: Install Python build tools
         run: |
+
           pip install \
             setuptools==69.5.1 \
             wheel==0.43.0 \
             Cython==0.29.36
 
-          pip install \
-            buildozer==1.5.0
+
+
+      - name: Install Buildozer
+        run: |
+
+          pip install buildozer==1.5.0
+
+          pip install python-for-android==2024.01.21
+
 
 
       - name: Clean Buildozer cache
         run: |
+
           rm -rf .buildozer
+
           rm -rf ~/.buildozer
+
           rm -rf ~/.cache/pip
 
 
-      - name: Install fixed python-for-android
-        run: |
-          mkdir -p ~/.buildozer/android/platform
 
-          git clone \
-            -b v2024.01.21 \
-            --depth 1 \
-            https://github.com/kivy/python-for-android.git \
-            ~/.buildozer/android/platform/python-for-android
+      - name: Configure Android paths
+        run: |
+
+          echo "ANDROIDSDK=$ANDROID_HOME" >> $GITHUB_ENV
+
+          echo "ANDROIDNDK=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+
+          echo "ANDROIDAPI=34" >> $GITHUB_ENV
+
+          echo "ANDROIDMINAPI=24" >> $GITHUB_ENV
+
 
 
       - name: Show versions
         run: |
+
           python --version
+
           pip --version
+
           cython --version
+
           buildozer --version
+
+          echo "NDK:"
+          ls $ANDROID_HOME/ndk
+
+
+
+      - name: Check buildozer.spec
+        run: |
+
+          cat buildozer.spec
+
 
 
       - name: Build APK
         env:
+
           BUILDOZER_LOG_LEVEL: 2
+
         run: |
+
           buildozer android debug
+
 
 
       - name: Upload APK
         if: success()
+
         uses: actions/upload-artifact@v4
+
         with:
+
           name: LahzeSaz-APK
+
           path: bin/*.apk
 
 
-      - name: Upload build logs
+
+      - name: Upload Build Logs
         if: always()
+
         uses: actions/upload-artifact@v4
+
         with:
-          name: Buildozer-Logs
+
+          name: LahzeSaz-Build-Logs
+
           path: |
+
             .buildozer/**/*.log
+
             .buildozer/**/build.log
