@@ -43,7 +43,7 @@ version = 1.0
 #   plyer            -> دوربین و فایل‌چوزر (camera, filechooser)
 #   pyjnius          -> دسترسی به API اندروید (device id، SAF، ...)
 #   openssl          -> پشتیبانی https برای requests
-requirements = python3==3.11,kivy==2.3.0,arabic_reshaper,python-bidi,requests,plyer,pyjnius,openssl
+requirements = python3==3.11.9,hostpython3==3.11.9,kivy==2.3.0,arabic_reshaper,python-bidi,requests,plyer,pyjnius,openssl
 
 # (str) آیکون برنامه — لوگوی اصلی پروژه
 icon.filename = %(source.dir)s/logo/logo.png
