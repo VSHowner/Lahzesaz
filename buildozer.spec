@@ -69,7 +69,7 @@ android.minapi = 21
 android.api = 34
 
 # (str) نسخه‌ی NDK اندروید
-android.ndk = 25b
+android.ndk = 25c
 
 # (list) مجوزهای اندروید مورد نیاز برنامه
 #   INTERNET                -> آپلود عکس پروفایل (requests)
