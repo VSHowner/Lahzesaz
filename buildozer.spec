@@ -48,6 +48,17 @@ requirements = python3==3.11.9,hostpython3==3.11.9,kivy==2.3.0,arabic_reshaper,p
 # (str) آیکون برنامه — لوگوی اصلی پروژه
 icon.filename = %(source.dir)s/logo/logo.png
 
+# (str) تصویر پرسپلش (صفحه‌ی بارگذاری اولیه‌ی نیتیو، قبل از بوت‌شدن کامل پایتون)
+# به‌جای لوگوی پیش‌فرض کیوی (پرنده + "Loading...")، از لوگوی خودمان استفاده می‌شود
+# تا کاربر یک صفحه‌ی برند‌شده ببیند، نه صفحه‌ی جنریک p4a.
+presplash.filename = %(source.dir)s/logo/logo.png
+
+# (str) رنگ پس‌زمینه‌ی پرسپلش — دقیقاً برابر با Window.clearcolor تنظیم‌شده در main.py
+# (0.97, 0.97, 0.98, 1) => #F7F7FA
+# این هماهنگی باعث می‌شود گذار از پرسپلش نیتیو به اولین فریم Kivy کاملاً یکدست
+# و بدون پرش/فلش دیده شود (پرش معمولاً وقتی حس می‌شود که رنگ پس‌زمینه فرق کند).
+android.presplash_color = #F7F7FA
+
 # (str) جهت صفحه: portrait / landscape / all
 orientation = portrait
 
