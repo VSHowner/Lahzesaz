@@ -35,18 +35,101 @@ from kivy.graphics import (Color, Rectangle, RoundedRectangle, Line, Ellipse, Ro
 if os.name == "nt":
     Window.size = (380, 760)
 
-# ---------------------------------------------------------------------------
-try:
-    import arabic_reshaper
-    _RESHAPE_AVAILABLE = True
-except ImportError:
-    _RESHAPE_AVAILABLE = False
+# --- BUGFIX 2: رفتار کیبورد نرم‌افزاری روی اندروید ---
+# بدون این تنظیم، در بعضی دستگاه‌ها کیبورد روی فیلد ورودی می‌افتد یا اصلاً
+# فوکوس/باز شدن کیبورد به‌درستی انجام نمی‌شود.
+# چیدمان صفحه‌ی لاگین داخل ScrollView عمودی است و فیلدها می‌توانند نزدیک پایین
+# صفحه باشند؛ "below_target" صفحه را دقیقاً تا جایی بالا می‌برد که فیلد هدف
+# بالای کیبورد قرار بگیرد (برخلاف "pan" که کل پنجره را بدون توجه به هدف
+# می‌لغزاند و در فرم‌های بلند باعث پریدن چیدمان می‌شود).
+if kivy_platform == "android":
+    Window.softinput_mode = "below_target"
+    Window.keyboard_anim_args = {"d": 0.2, "t": "out_quart"}
 
+# ---------------------------------------------------------------------------
+# BUGFIX 1: شکل‌دهی حروف فارسی (reshape) + جهت‌دهی دوسویه (bidi)
+# دو مرحله کاملاً از هم جدا شده‌اند تا بتوان هرکدام را مستقل تست/لاگ کرد.
+# arabic_reshaper به‌صورت پیش‌فرض فایل default-config.ini را از داخل بسته
+# می‌خواند؛ این فایل در build با python-for-android معمولاً حذف می‌شود و
+# reshape() روی دستگاه exception می‌دهد. پس یک نمونه با کانفیگ صریحِ درون‌کد
+# می‌سازیم تا هیچ وابستگی‌ای به فایل خارجی نداشته باشیم.
+_RESHAPE_AVAILABLE = False
+_reshaper = None
+_RESHAPE_ERROR = ""
 try:
-    from bidi.algorithm import get_display
+    from arabic_reshaper import ArabicReshaper  # type: ignore
+    _reshaper = ArabicReshaper(configuration={
+        'delete_harakat': False,
+        'support_ligatures': True,
+        'use_unshaped_instead_of_isolated': False,
+    })
+    _reshaper.reshape("\u0644\u062d\u0638\u0647")  # smoke-test روی خود دستگاه
+    _RESHAPE_AVAILABLE = True
+except Exception as _e:  # ImportError یا خطای کانفیگ
+    _RESHAPE_ERROR = f"{type(_e).__name__}: {_e}"
+    _reshaper = None
+    # تلاش دوم: API ماژولی (اگر فایل کانفیگ سرجایش باشد)
+    try:
+        import arabic_reshaper as _ar_mod  # type: ignore
+        _ar_mod.reshape("\u0644\u062d\u0638\u0647")
+
+        class _ModuleReshaper:
+            @staticmethod
+            def reshape(t):
+                return _ar_mod.reshape(t)
+
+        _reshaper = _ModuleReshaper()
+        _RESHAPE_AVAILABLE = True
+        _RESHAPE_ERROR += " | fallback=module-level reshape OK"
+    except Exception as _e2:
+        _RESHAPE_ERROR += f" | fallback failed: {type(_e2).__name__}: {_e2}"
+
+_BIDI_AVAILABLE = False
+_BIDI_ERROR = ""
+try:
+    from bidi.algorithm import get_display  # type: ignore
+    get_display("\u0644\u062d\u0638\u0647")  # smoke-test
     _BIDI_AVAILABLE = True
-except ImportError:
-    _BIDI_AVAILABLE = False
+except Exception as _e:
+    _BIDI_ERROR = f"{type(_e).__name__}: {_e}"
+
+    def get_display(t):  # type: ignore
+        return t
+
+
+def _reshape_step(text: str) -> str:
+    """مرحله‌ی ۱ — چسباندن حروف. خطا را قابل مشاهده در logcat می‌کند."""
+    if not text or not _RESHAPE_AVAILABLE or _reshaper is None:
+        return text
+    try:
+        return _reshaper.reshape(text)
+    except Exception as e:
+        print(f"[FA][reshape][ERROR] {type(e).__name__}: {e}")
+        return text
+
+
+def _bidi_step(text: str) -> str:
+    """مرحله‌ی ۲ — بازچینی دوسویه. خطا را قابل مشاهده در logcat می‌کند."""
+    if not text or not _BIDI_AVAILABLE:
+        return text
+    try:
+        return get_display(text)
+    except Exception as e:
+        print(f"[FA][bidi][ERROR] {type(e).__name__}: {e}")
+        return text
+
+
+# TODO: remove after debug — لاگ تشخیصی وضعیت reshape/bidi روی دستگاه
+print(f"[FA][diag] platform={kivy_platform} "
+      f"_RESHAPE_AVAILABLE={_RESHAPE_AVAILABLE} reshape_err={_RESHAPE_ERROR or 'none'} "
+      f"_BIDI_AVAILABLE={_BIDI_AVAILABLE} bidi_err={_BIDI_ERROR or 'none'}")
+try:
+    _t = "\u0644\u062d\u0638\u0647\u200c\u0633\u0627\u0632"
+    print("[FA][diag] raw     :", [hex(ord(c)) for c in _t])
+    print("[FA][diag] reshaped:", [hex(ord(c)) for c in _reshape_step(_t)])
+    print("[FA][diag] bidi    :", [hex(ord(c)) for c in _bidi_step(_reshape_step(_t))])
+except Exception as _e:
+    print(f"[FA][diag][ERROR] {_e}")
 
 try:
     import requests
@@ -69,16 +152,10 @@ except ImportError:
 
 
 def fa(text: str) -> str:
+    """BUGFIX 1: هر مرحله جداگانه و با لاگ خطای قابل مشاهده اجرا می‌شود."""
     if not text:
         return text
-    try:
-        if _RESHAPE_AVAILABLE:
-            text = arabic_reshaper.reshape(text)
-        if _BIDI_AVAILABLE:
-            text = get_display(text)
-    except Exception as e:
-        print(f"[fa] خطا: {e}")
-    return text
+    return _bidi_step(_reshape_step(text))
 
 
 # ---------------------------------------------------------------------------
@@ -2948,14 +3025,8 @@ class RTLTextInput(TextInput):
         self._updating = True
         raw = self._raw_text or ""
         display = raw
-        try:
-            if _RESHAPE_AVAILABLE and raw:
-                display = arabic_reshaper.reshape(raw)
-            if _BIDI_AVAILABLE and display:
-                display = get_display(display)
-        except Exception as e:
-            print(f"[RTLTextInput._sync_display] {e}")
-            display = raw
+        # BUGFIX 1: مراحل مجزا؛ هر خطا در logcat دیده می‌شود و متن خام حفظ می‌شود.
+        display = _bidi_step(_reshape_step(raw))
         self.text = display
         # مکان‌نما را به انتهای نمایشی می‌بریم (مسیر واحد _move_cursor_to_end).
         self._move_cursor_to_end()
@@ -3039,16 +3110,8 @@ def _fa_line(raw_line: str) -> str:
     """اعمال reshape/bidi روی یک خط تک — بدون شکستن اضافی."""
     if not raw_line:
         return raw_line
-    out = raw_line
-    try:
-        if _RESHAPE_AVAILABLE:
-            out = arabic_reshaper.reshape(out)
-        if _BIDI_AVAILABLE:
-            out = get_display(out)
-    except Exception as e:
-        print(f"[_fa_line] {e}")
-        return raw_line
-    return out
+    # BUGFIX 1: استفاده از مراحل مجزای reshape/bidi با لاگ خطای قابل مشاهده
+    return _bidi_step(_reshape_step(raw_line))
 
 
 def fa_wrap(raw_text: str, width_px: float, font_name: str, font_size_px: float) -> str:
@@ -6040,6 +6103,7 @@ class AuthBase(Screen):
 
     # ---- انتخاب پوشه‌ی حافظه (SAF روی اندروید، filechooser روی دسکتاپ) ----
     def pick_storage_folder(self):
+        print("[pick_storage_folder] called")  # TODO: remove after debug
         # 1) تلاش برای Storage Access Framework روی اندروید
         try:
             from jnius import autoclass, cast  # type: ignore
@@ -6078,8 +6142,9 @@ class AuthBase(Screen):
             activity.bind(on_activity_result=on_activity_result)
             current_activity.startActivityForResult(intent, 0xF01D)
             return
-        except Exception:
-            pass
+        except Exception as e:
+            # BUGFIX 3: silent-fail → visible-log
+            print(f"[pick_storage_folder][SAF] {type(e).__name__}: {e}")
 
         # 2) fallback دسکتاپ: plyer.filechooser (انتخاب پوشه)
         try:
@@ -6099,14 +6164,18 @@ class AuthBase(Screen):
                 try:
                     plyer_filechooser.choose_dir(on_selection=_cb)
                     return
-                except Exception:
+                except Exception as e1:
+                    print(f"[pick_storage_folder][plyer.choose_dir] {type(e1).__name__}: {e1}")
                     try:
                         plyer_filechooser.open_file(on_selection=_cb)
                         return
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+                    except Exception as e2:
+                        print(f"[pick_storage_folder][plyer.open_file] {type(e2).__name__}: {e2}")
+            else:
+                print("[pick_storage_folder][plyer] not available")
+        except Exception as e:
+            # BUGFIX 3: silent-fail → visible-log
+            print(f"[pick_storage_folder][plyer] {type(e).__name__}: {e}")
 
         # 3) fallback آخر: از SAVE_DIR استفاده کن
         self._set_storage_path(SAVE_DIR)
