@@ -36,14 +36,21 @@ version = 1.0
 # python3==3.11  -> نسخه‌ی پایتون به‌صورت صریح قفل شده تا p4a خودش
 #                   جدیدترین ریسیپی را انتخاب نکند (build تکرارپذیر شود).
 #                   این نسخه با تگ پین‌شده‌ی p4a پایین‌تر سازگار است.
-#   kivy==2.3.0      -> فریم‌ورک اصلی
-#   arabic_reshaper  -> بازچینی حروف فارسی/عربی (fa())
-#   python-bidi      -> راست‌به‌چپ کردن متن (get_display)
+#   kivy==2.3.0        -> فریم‌ورک اصلی
+#   arabic_reshaper==3.0.0 -> بازچینی حروف فارسی/عربی (fa()). پین شده چون
+#                   نسخه‌های آزاد ممکنه رفتار/ساختار متفاوتی داشته باشن.
+#   python-bidi==0.4.2 -> راست‌به‌چپ کردن متن (get_display). این نسخه دقیقاً
+#                   با importِ فعلی کد (`from bidi.algorithm import get_display`)
+#                   سازگاره. نسخه‌های جدیدتر (0.5+) بازنویسی بزرگی داشتن و
+#                   ساختار ماژول عوض شده؛ اگه پین نشه، ممکنه روی دستگاه
+#                   ImportError بخوره و بی‌صدا (طبق try/except خودِ main.py)
+#                   غیرفعال بشه — که دقیقاً باعث می‌شه متن فارسی چسبیده و
+#                   راست‌به‌چپ نشه (علامتی که قبلاً دیدی).
 #   requests         -> آپلود عکس پروفایل (upload_avatar)
 #   plyer            -> دوربین و فایل‌چوزر (camera, filechooser)
 #   pyjnius          -> دسترسی به API اندروید (device id، SAF، ...)
 #   openssl          -> پشتیبانی https برای requests
-requirements = python3==3.11.9,hostpython3==3.11.9,kivy==2.3.0,arabic_reshaper,python-bidi,requests,plyer,pyjnius,openssl
+requirements = python3==3.11.9,hostpython3==3.11.9,kivy==2.3.0,arabic_reshaper==3.0.0,python-bidi==0.4.2,requests,plyer,pyjnius,openssl
 
 # (str) آیکون برنامه — لوگوی اصلی پروژه
 icon.filename = %(source.dir)s/logo/logo.png
@@ -90,7 +97,7 @@ android.ndk = 25c
 android.permissions = INTERNET,CAMERA,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,READ_MEDIA_IMAGES
 
 # (str) معماری‌های هدف برای build (هر دو معماری رایج امروزی)
-android.archs = arm64-v8a, armeabi-v7a
+android.archs = arm64-v8a,armeabi-v7a
 
 # (bool) قبول خودکار لایسنس‌های Android SDK هنگام build
 android.accept_sdk_license = True
