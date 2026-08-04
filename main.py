@@ -25,7 +25,8 @@ from kivy.uix.button import Button
 from kivy.uix.image import Image
 from kivy.uix.scatter import Scatter
 from kivy.clock import Clock
-from kivy.metrics import dp
+from kivy.metrics import dp, sp
+from kivy.uix.widget import Widget
 from kivy.animation import Animation
 from kivy.graphics import (Color, Rectangle, RoundedRectangle, Line, Ellipse, Rotate,
                            PushMatrix, PopMatrix,
@@ -195,7 +196,8 @@ _FONTS_CANDIDATES = [
 FONTS_DIR = next((p for p in _FONTS_CANDIDATES if os.path.isdir(p)), _FONTS_CANDIDATES[0])
 
 SAVE_FILE = os.path.join(SAVE_DIR, "user_data.json")
-SETTINGS_FILE = os.path.join(SAVE_DIR, "app_settings.json")  # تنظیمات محلی (مثل آخرین مسیر ذخیره‌سازی)
+# app_settings.json حذف شد: هیچ فایل تنظیماتی بیرون از پوشه‌های اکانت
+# نوشته نمی‌شود؛ «آخرین مسیر انتخابی» فقط در حافظه‌ی همین اجرا نگه‌داری می‌شود.
 DEVICE_FILE = os.path.join(SAVE_DIR, "device_id.txt")
 
 # ---------------------------------------------------------------------------
@@ -1015,6 +1017,175 @@ def get_home_ideas(age):
     return _tag_ideas(HOME_20_PLUS, TAG_AGE_20_PLUS)
 
 
+# ---------------------------------------------------------------------------
+# ایده‌های «طبیعت‌گردی» بر اساس بازه‌ی سنی کاربر (تجمعی)
+# ---------------------------------------------------------------------------
+NATURE_15_20 = [
+    {"title": "پیک‌نیک تخصصی در پارک جنگلی",
+     "desc": "به‌جای یک ساندویچ ساده، منوی پیک‌نیک را از قبل با هم بنویسید: یک غذای اصلی سرد، دو مخلفات و یک دسر. زیرانداز، ترموس چای و یک بلندگوی کوچک ببرید. نکته‌ی عملی: غذاها را در ظرف‌های جدا و از قبل برش‌خورده ببرید تا سر بساط فقط بچینید و وقتتان صرف آماده‌سازی نشود.",
+     "border": (0.357, 0.667, 0.498, 1), "fav": True,
+     "tags": [TAG_CALM, TAG_DUO, _t_time("۴ ساعت"), _t_cost("ارزان")]},
+    {"title": "پیاده‌روی کنار رودخانه",
+     "desc": "یک مسیر رودخانه‌ای نزدیک شهر انتخاب کنید و مسیر رفت را در سکوت و مسیر برگشت را در گفت‌وگو طی کنید. کفش ضدلغزش بپوشید چون سنگ‌های کنار آب لیز هستند. نکته: یک بطری خالی ببرید و در راه هر زباله‌ای دیدید جمع کنید؛ این کار کوچک، حس مشترکِ خوبی از روز می‌سازد.",
+     "border": (0.345, 0.537, 0.800, 1),
+     "tags": [TAG_CALM, _t_time("۲ ساعت"), _t_cost("رایگان")]},
+    {"title": "تماشای غروب روی تپه",
+     "desc": "یک تپه یا بلندیِ مشرف به شهر پیدا کنید و نیم‌ساعت قبل از غروب آنجا باشید. یک پتوی نازک و دو لیوان نوشیدنی گرم ببرید. نکته‌ی عملی: زمان دقیق غروب را از اپلیکیشن آب‌وهوا بگیرید و ۴۵ دقیقه زودتر حرکت کنید؛ بهترین رنگ آسمان دقیقاً ۱۰ دقیقه بعد از غروب اتفاق می‌افتد.",
+     "border": (0.910, 0.380, 0.227, 1), "fav": True,
+     "tags": [TAG_ROMANTIC, TAG_CALM, _t_time("۲ ساعت"), _t_cost("رایگان")]},
+    {"title": "جنگل‌گردی با بازی جست‌وجوی گنج",
+     "desc": "قبل از رفتن، هرکدام لیستی از ۱۰ چیز طبیعی بنویسید (برگ قرمز، سنگ صاف، پر پرنده و...) و لیست‌ها را رد و بدل کنید. هرکس زودتر همه را پیدا کرد برنده است. نکته: از هر چیزی که پیدا کردید عکس بگیرید به‌جای برداشتن، تا طبیعت دست‌نخورده بماند.",
+     "border": (0.180, 0.478, 0.314, 1),
+     "tags": [TAG_ADVENT, TAG_COMPETE, _t_time("۳ ساعت"), _t_cost("ارزان")]},
+    {"title": "دوچرخه‌سواری در مسیر خاکی",
+     "desc": "یک مسیر خاکیِ کم‌شیب بیرون شهر انتخاب کنید و با دوچرخه‌ی کرایه‌ای برانید. هر ۲۰ دقیقه یک ایستگاه استراحت با آب و خرما بگذارید. نکته‌ی عملی: قبل از حرکت باد لاستیک‌ها و ترمزها را چک کنید و مسیر را آفلاین روی نقشه ذخیره کنید چون آنتن‌دهی بیرون شهر ضعیف است.",
+     "border": (0.788, 0.502, 0.376, 1),
+     "tags": [TAG_SPORT, TAG_ADVENT, _t_time("۳ ساعت"), _t_cost("ارزان")]},
+    {"title": "پرنده‌نگری صبح زود",
+     "desc": "یک تالاب یا پارک بزرگ را نزدیک طلوع انتخاب کنید؛ ساعت اول صبح فعال‌ترین زمان پرنده‌هاست. یک دوربین شکاری ساده یا حتی زوم گوشی کافی است. نکته: هر پرنده‌ای دیدید در یک دفترچه با ساعت و رنگش یادداشت کنید؛ در پایان لیست مشترکتان یک یادگاریِ واقعی از آن روز است.",
+     "border": (0.345, 0.537, 0.800, 1),
+     "tags": [TAG_CALM, TAG_DUO, _t_time("۲ ساعت"), _t_cost("رایگان")]},
+    {"title": "قایق‌سواری پدالی در دریاچه",
+     "desc": "یک قایق پدالی یا کایاک دونفره اجاره کنید و تا وسط دریاچه بروید، بعد پدال‌ها را ول کنید و فقط شناور بمانید. نکته‌ی عملی: گوشی‌ها را داخل کیسه‌ی زیپ‌دار بگذارید و ساعت اجاره را طوری بگیرید که آخرِ روز و نور طلایی را روی آب ببینید.",
+     "border": (0.251, 0.376, 0.690, 1),
+     "tags": [TAG_ADVENT, TAG_DUO, _t_time("۱ ساعت"), _t_cost("متوسط")]},
+    {"title": "کوهنوردی سبک تا آبشار",
+     "desc": "یک مسیر آبشارِ نزدیک با پیاده‌رویِ حداکثر یک‌ساعته انتخاب کنید. یک تی‌شرت اضافه ببرید چون نزدیک آبشار خیس و خنک می‌شوید. نکته: در نقطه‌ی پایانی ۵ دقیقه بدون حرف زدن فقط به صدای آب گوش بدهید؛ تفاوتش با تماشای معمولی خیلی زیاد است.",
+     "border": (0.180, 0.478, 0.314, 1),
+     "tags": [TAG_SPORT, TAG_ADVENT, _t_time("۴ ساعت"), _t_cost("ارزان")]},
+    {"title": "کاشتن یک نهال مشترک",
+     "desc": "یک نهال کوچک بخرید و در یک نهالستان مجاز یا حیاط خانه بکارید و تاریخش را روی یک تکه چوب بنویسید. نکته‌ی عملی: از قبل با شهرداری یا انجمن‌های محیط‌زیستی هماهنگ کنید؛ خیلی از شهرها روزهای مشخصی برای کاشت گروهی دارند و رایگان نهال می‌دهند.",
+     "border": (0.357, 0.667, 0.498, 1),
+     "tags": [TAG_CALM, TAG_ROMANTIC, _t_time("۲ ساعت"), _t_cost("ارزان")]},
+]
+
+NATURE_20_25_EXTRA = [
+    {"title": "کمپینگ یک‌شبه با چادر",
+     "desc": "یک کمپ‌سایتِ امن و مجاز انتخاب کنید، قبل از تاریکی چادر بزنید و شام را روی گاز پیک‌نیکی بپزید. نکته‌ی عملی: زیرانداز عایق زیر کیسه‌خواب فراموش نشود؛ سرمای زمین بیشتر از سرمای هوا خواب را خراب می‌کند. یک چراغ‌قوه‌ی پیشانی برای هرکدام ببرید.",
+     "border": (0.910, 0.380, 0.227, 1), "fav": True,
+     "tags": [TAG_ADVENT, TAG_DUO, _t_time("یک شب"), _t_cost("متوسط")]},
+    {"title": "ستاره‌شناسی شبانه دور از نور شهر",
+     "desc": "یک نقطه‌ی حداقل ۳۰ کیلومتر دورتر از نور شهر پیدا کنید و با یک اپلیکیشن نقشه‌ی آسمان صورت‌های فلکی را شکار کنید. نکته: ۲۰ دقیقه اول هیچ صفحه‌ی روشنی نگاه نکنید تا چشم‌ها به تاریکی عادت کنند؛ بعد از آن تعداد ستاره‌هایی که می‌بینید چند برابر می‌شود.",
+     "border": (0.251, 0.376, 0.690, 1),
+     "tags": [TAG_ROMANTIC, TAG_CALM, _t_time("۳ ساعت"), _t_cost("ارزان")]},
+    {"title": "اسب‌سواری در دشت",
+     "desc": "یک باشگاه سوارکاری با مربی رزرو کنید و جلسه‌ی مقدماتیِ دونفره بگیرید. شلوار کشی و کفش پاشنه‌دار کوتاه بپوشید. نکته‌ی عملی: قبل از سوار شدن چند دقیقه کنار اسب بایستید و گردنش را نوازش کنید؛ آشنایی اولیه ترس را کم می‌کند و تجربه‌ی سواری خیلی روان‌تر می‌شود.",
+     "border": (0.788, 0.502, 0.376, 1),
+     "tags": [TAG_ADVENT, TAG_EXCITING, _t_time("۲ ساعت"), _t_cost("گران")]},
+    {"title": "پیاده‌روی جنگلی در مه صبحگاهی",
+     "desc": "یک صبح پاییزی یا بهاری، جنگلِ نزدیک را قبل از ساعت ۸ انتخاب کنید تا مه هنوز نشسته باشد. یک ترموس قهوه ببرید. نکته: با گوشی چند ویدئوی ۱۰ ثانیه‌ای از صدای جنگل بگیرید؛ بعداً پخش کردن همان صداها خاطره را برمی‌گرداند.",
+     "border": (0.180, 0.478, 0.314, 1),
+     "tags": [TAG_CALM, TAG_ROMANTIC, _t_time("۳ ساعت"), _t_cost("رایگان")]},
+    {"title": "آبشارگردی یک‌روزه",
+     "desc": "دو آبشار در یک مسیر انتخاب کنید و یک روز کامل را به گشتن بین آن‌ها بگذرانید. نکته‌ی عملی: صندل کوهنوردی یا کفشی که خیس شدنش مهم نیست بپوشید و یک حوله‌ی میکروفایبر کوچک ببرید؛ سبک است و سریع خشک می‌شود.",
+     "border": (0.345, 0.537, 0.800, 1),
+     "tags": [TAG_ADVENT, TAG_SPORT, _t_time("یک روز"), _t_cost("متوسط")]},
+    {"title": "آشپزی روی آتش در طبیعت",
+     "desc": "در یک محوطه‌ی مجازِ آتش، سیب‌زمینی فویل‌پیچ و ذرت کبابی درست کنید. یکی مسئول آتش و دیگری مسئول غذا باشد و وسط کار جاها را عوض کنید. نکته: زغال را ۴۰ دقیقه قبل از پخت روشن کنید؛ شعله‌ی مستقیم غذا را می‌سوزاند، زغالِ سفیدشده کار درست را می‌کند.",
+     "border": (0.910, 0.380, 0.227, 1),
+     "tags": [TAG_DUO, TAG_CREATIVE, _t_time("۴ ساعت"), _t_cost("ارزان")]},
+    {"title": "چشمه‌گردی و نقشه‌ی دست‌ساز",
+     "desc": "سه چشمه یا قناتِ نزدیک را در یک روز ببینید و برای خودتان یک نقشه‌ی دست‌ساز بکشید که مسیر و مزه‌ی آب هرکدام را ثبت کند. نکته‌ی عملی: یک بطری استیل ببرید و آب هر چشمه را بچشید و از ۱۰ نمره بدهید؛ بحث سرِ نمره‌ها بامزه‌ترین بخش روز می‌شود.",
+     "border": (0.357, 0.667, 0.498, 1),
+     "tags": [TAG_ADVENT, TAG_DUO, _t_time("یک روز"), _t_cost("ارزان")]},
+    {"title": "عکاسی طبیعت با نور طلایی",
+     "desc": "یک ساعت قبل از غروب به دشت یا مزرعه‌ای بروید و از هم و از طبیعت عکس بگیرید. نکته: پشت به خورشید نایستید؛ خورشید را کنار یا پشت سوژه بگذارید تا لبه‌ی نورانی دور موها بیفتد. در پایان سه عکس برتر را انتخاب و چاپ کنید.",
+     "border": (0.608, 0.427, 0.816, 1),
+     "tags": [TAG_ART, TAG_ROMANTIC, _t_time("۲ ساعت"), _t_cost("رایگان")]},
+    {"title": "دشت گل و پیاده‌روی بی‌مقصد",
+     "desc": "در فصل گل، یک دشت یا مزرعه‌ی گل انتخاب کنید و بدون مقصد مشخص قدم بزنید. قانون: هیچ‌کدام نباید مسیر را انتخاب کند؛ سر هر دوراهی سکه بیندازید. نکته‌ی عملی: اسپری ضد حساسیت یا ماسک ببرید اگر یکی‌تان به گرده حساسیت دارد.",
+     "border": (0.478, 0.188, 0.565, 1),
+     "tags": [TAG_CALM, TAG_ROMANTIC, _t_time("۳ ساعت"), _t_cost("رایگان")]},
+]
+
+NATURE_25_30_EXTRA = [
+    {"title": "کمپینگ کنار دریاچه با صبحانه‌ی طلوع",
+     "desc": "چادر را شب کنار دریاچه بزنید و ساعت را نیم‌ساعت قبل از طلوع کوک کنید تا صبحانه را با آفتابِ روی آب بخورید. نکته‌ی عملی: چادر را حداقل ۲۰ متر دورتر از لبه‌ی آب و روی زمینِ کمی شیب‌دار بزنید تا شبنم و رطوبت شبانه اذیت نکند.",
+     "border": (0.251, 0.376, 0.690, 1), "fav": True,
+     "tags": [TAG_ROMANTIC, TAG_ADVENT, _t_time("یک شب"), _t_cost("متوسط")]},
+    {"title": "ترکینگ نیم‌روزه با مسیر مشخص",
+     "desc": "یک مسیر ۸ تا ۱۲ کیلومتری با راهنمای مسیر (GPX) انتخاب کنید و با کوله‌ی سبک بروید. نکته: هر ساعت ۵ دقیقه توقف و آب خوردن را جدی بگیرید؛ خستگی در ترکینگ از کم‌آبی می‌آید نه از مسافت. یک جفت جوراب اضافه هم نجات‌دهنده است.",
+     "border": (0.180, 0.478, 0.314, 1),
+     "tags": [TAG_SPORT, TAG_ADVENT, _t_time("نیم روز"), _t_cost("ارزان")]},
+    {"title": "قایق‌سواری پارویی در سپیده‌دم",
+     "desc": "کایاک را برای اولین سانس صبح رزرو کنید؛ آب آینه‌ای و بی‌موج است. یکی پارو بزند و دیگری مسیر را هدایت کند، بعد جا عوض کنید. نکته‌ی عملی: جلیقه‌ی نجات را حتی اگر شنا بلدید بپوشید و یک بند نگهدارنده برای عینک آفتابی ببندید.",
+     "border": (0.345, 0.537, 0.800, 1),
+     "tags": [TAG_ADVENT, TAG_SPORT, _t_time("۲ ساعت"), _t_cost("متوسط")]},
+    {"title": "بازدید از باغ گیاه‌شناسی و ژورنال طبیعت",
+     "desc": "یک باغ گیاه‌شناسی یا گلخانه‌ی بزرگ را انتخاب کنید و هرکدام یک دفتر کوچک ببرید: اسم گیاه، بو، و یک جمله درباره‌اش. نکته: در انتها دفترها را عوض کنید و بلند بخوانید؛ فهمیدن اینکه طرف مقابل چه چیزی را دیده و شما ندیده‌اید، جذاب‌ترین قسمت است.",
+     "border": (0.357, 0.667, 0.498, 1),
+     "tags": [TAG_CALM, TAG_ART, _t_time("۳ ساعت"), _t_cost("ارزان")]},
+    {"title": "پیک‌نیک شام با فانوس",
+     "desc": "به‌جای ناهار، پیک‌نیکِ شام ترتیب بدهید: دو فانوس ال‌ای‌دی، یک سبد غذای گرم در ظرف عایق و موسیقی آرام. نکته‌ی عملی: یک زیرانداز ضدآب و یک پتوی گرم ببرید؛ زمینِ شب سردتر از چیزی است که فکر می‌کنید و همین یک قلم، شب را نجات می‌دهد.",
+     "border": (0.910, 0.380, 0.227, 1),
+     "tags": [TAG_ROMANTIC, TAG_DUO, _t_time("۳ ساعت"), _t_cost("متوسط")]},
+    {"title": "اسب‌سواری در مسیر جنگلی",
+     "desc": "این بار به‌جای مانژ، تور سوارکاریِ مسیرِ جنگلی با مربی رزرو کنید. نکته: قبلش نیم‌ساعت پیاده‌روی کنید تا بدنتان گرم شود؛ کمردرد بعد از سواری معمولاً از سرد بودن عضلات می‌آید. بعد از تور، سیب یا هویج به اسب بدهید.",
+     "border": (0.788, 0.502, 0.376, 1),
+     "tags": [TAG_ADVENT, TAG_EXCITING, _t_time("۳ ساعت"), _t_cost("گران")]},
+    {"title": "روستاگردی و خرید محلی",
+     "desc": "یک روستای کوهستانی انتخاب کنید، در بازار محلی خرید کنید و ناهار را در خانه‌مسافر بخورید. نکته‌ی عملی: پول نقد ببرید چون بیشتر دستفروش‌های محلی دستگاه کارت ندارند، و برای هر خرید یک سقف بودجه‌ی مشترک بگذارید تا خرید تبدیل به یک بازی شود.",
+     "border": (0.565, 0.376, 0.125, 1),
+     "tags": [TAG_ADVENT, TAG_DUO, _t_time("یک روز"), _t_cost("متوسط")]},
+    {"title": "شکار بارانِ شهابی",
+     "desc": "تقویم بارش‌های شهابی (مثل پرسئید در مرداد) را چک کنید و یک شب صاف را برای دیدنش بیرون شهر برنامه‌ریزی کنید. نکته: صندلی تاشوی تختخواب‌شو یا زیرانداز ببرید تا بتوانید دراز بکشید؛ گردن‌درد بزرگ‌ترین دشمن رصد شهابی است.",
+     "border": (0.478, 0.188, 0.565, 1), "fav": True,
+     "tags": [TAG_ROMANTIC, TAG_CALM, _t_time("۴ ساعت"), _t_cost("ارزان")]},
+    {"title": "کوهنوردی تا پناهگاه با چای بعدازظهر",
+     "desc": "یک پناهگاه کوهستانیِ در دسترس انتخاب کنید، تا آنجا بالا بروید و بعدازظهر را با چای و بازی ورق در ارتفاع بگذرانید. نکته‌ی عملی: یک لایه‌ی بادگیر سبک ببرید؛ اختلاف دمای دامنه و پناهگاه معمولاً بیشتر از ۸ درجه است.",
+     "border": (0.180, 0.478, 0.314, 1),
+     "tags": [TAG_SPORT, TAG_DUO, _t_time("نیم روز"), _t_cost("ارزان")]},
+]
+
+NATURE_30_35_EXTRA = [
+    {"title": "گلمپینگ آخر هفته",
+     "desc": "یک اقامتگاه گلمپینگ (کمپینگ لوکس) با چادر مجهز رزرو کنید تا هم طبیعت داشته باشید هم راحتی. نکته‌ی عملی: اقامتگاهی را انتخاب کنید که آشپزخانه‌ی مشترک دارد و یک وعده را خودتان بپزید؛ ترکیب راحتی و کار مشترک بهترین حالت این سفر است.",
+     "border": (0.910, 0.380, 0.227, 1), "fav": True,
+     "tags": [TAG_ROMANTIC, TAG_CALM, _t_time("آخر هفته"), _t_cost("گران")]},
+    {"title": "سفر جاده‌ای با توقف‌های طبیعی",
+     "desc": "یک مسیر ۲۰۰ کیلومتری انتخاب کنید و از قبل چهار نقطه‌ی توقف تعیین کنید: یک چشمه، یک نقطه‌ی منظره، یک کافه‌ی بین‌راهی و یک جنگل. نکته: پلی‌لیست را نفری نصف بسازید و در هر توقف نوبت پخش عوض شود؛ این کوچک‌ترین کار، سفر را دونفره می‌کند.",
+     "border": (0.345, 0.537, 0.800, 1),
+     "tags": [TAG_ADVENT, TAG_DUO, _t_time("یک روز"), _t_cost("متوسط")]},
+    {"title": "پرنده‌نگری تخصصی در تالاب",
+     "desc": "یک تالابِ ثبت‌شده را در فصل مهاجرت انتخاب کنید و یک دوربین شکاری ۸x۴۲ کرایه کنید. نکته‌ی عملی: لباس تیره و بی‌صدا بپوشید و در پناهگاه رصد بی‌حرکت بنشینید؛ پرنده‌ها به حرکت حساس‌ترند تا به رنگ. یک چک‌لیست گونه‌ها پرینت کنید.",
+     "border": (0.251, 0.376, 0.690, 1),
+     "tags": [TAG_CALM, TAG_DUO, _t_time("نیم روز"), _t_cost("متوسط")]},
+    {"title": "طبیعت‌درمانی و پیاده‌روی آگاهانه",
+     "desc": "یک مسیر جنگلی کوتاه را در دو ساعت طی کنید، اما با قاعده‌ی «هر ۱۰ دقیقه یک توقف پنج‌حسی»: چه می‌بینید، می‌شنوید، می‌بویید، لمس می‌کنید و چه مزه‌ای در دهان دارید. نکته: گوشی‌ها را کامل خاموش کنید؛ حالت سایلنت کافی نیست.",
+     "border": (0.357, 0.667, 0.498, 1),
+     "tags": [TAG_CALM, TAG_DUO, _t_time("۲ ساعت"), _t_cost("رایگان")]},
+    {"title": "پیک‌نیک شرابِ بی‌الکل و پنیر در تاکستان",
+     "desc": "یک باغ انگور یا باغ میوه‌ی گردشگری پیدا کنید و بساط تخته‌ی پنیر، میوه‌ی تازه و نوشیدنی خنک راه بیندازید. نکته‌ی عملی: پنیرها را نیم‌ساعت قبل از سرو از کیف خنک دربیاورید؛ پنیرِ هم‌دمای محیط طعمش کاملاً فرق می‌کند.",
+     "border": (0.478, 0.188, 0.565, 1),
+     "tags": [TAG_ROMANTIC, TAG_CALM, _t_time("۴ ساعت"), _t_cost("متوسط")]},
+    {"title": "کوهنوردی سحرگاهی تا قله‌ی کوچک",
+     "desc": "یک قله‌ی محلی با صعود ۳ ساعته انتخاب کنید و طوری حرکت کنید که طلوع را در نیمه‌ی مسیر ببینید. نکته: سرعت را با کندترین نفر تنظیم کنید و هر ۴۵ دقیقه توقفِ ۵ دقیقه‌ای بگذارید؛ هدف رسیدن نیست، رسیدنِ با هم است.",
+     "border": (0.180, 0.478, 0.314, 1),
+     "tags": [TAG_SPORT, TAG_ADVENT, _t_time("نیم روز"), _t_cost("ارزان")]},
+    {"title": "دوچرخه‌سواری بین‌شهری در جاده‌ی سبز",
+     "desc": "یک مسیر جاده‌ای کم‌تردد ۳۰ کیلومتری انتخاب کنید و وسط راه در یک روستا ناهار بخورید. نکته‌ی عملی: کیت پنچرگیری، دو تیوب یدک و چراغ عقب فراموش نشود، و مسیر برگشت را با خودرو یا اتوبوس برنامه‌ریزی کنید تا خستگی روز را خراب نکند.",
+     "border": (0.788, 0.502, 0.376, 1),
+     "tags": [TAG_SPORT, TAG_ADVENT, _t_time("یک روز"), _t_cost("متوسط")]},
+    {"title": "شب‌مانی در کلبه‌ی جنگلی",
+     "desc": "یک کلبه‌ی چوبی در جنگل برای یک شب اجاره کنید، شومینه روشن کنید و شام را با هم بپزید. نکته: از قبل مطمئن شوید کلبه هیزم دارد و اگر ندارد از روستای مسیر بخرید؛ دنبال هیزم گشتن در تاریکی، بدترین شروع ممکن برای شب است.",
+     "border": (0.565, 0.376, 0.125, 1),
+     "tags": [TAG_ROMANTIC, TAG_CALM, _t_time("یک شب"), _t_cost("گران")]},
+    {"title": "آبشارگردیِ دو مقصدی با پیاده‌روی طولانی",
+     "desc": "دو آبشار در یک دره را با مسیرِ پیاده‌رویِ بین‌شان انتخاب کنید و کل روز را در دره بگذرانید. نکته‌ی عملی: ساعت برگشت را طوری بچینید که حداقل یک ساعت قبل از غروب از دره بیرون باشید؛ تاریکیِ دره خیلی زودتر از شهر می‌رسد.",
+     "border": (0.345, 0.537, 0.800, 1),
+     "tags": [TAG_ADVENT, TAG_SPORT, _t_time("یک روز"), _t_cost("متوسط")]},
+]
+
+
+def get_nature_ideas(age):
+    """ایده‌های «طبیعت‌گردی» — همه‌ی بازه‌های سنی برای همه نمایش داده می‌شه،
+    و کنار هر ایده تگ بازه‌ی سنیِ مربوطه می‌خوره."""
+    return (_tag_ideas(NATURE_15_20, TAG_AGE_15_20)
+            + _tag_ideas(NATURE_20_25_EXTRA, TAG_AGE_20_25)
+            + _tag_ideas(NATURE_25_30_EXTRA, TAG_AGE_25_30)
+            + _tag_ideas(NATURE_30_35_EXTRA, TAG_AGE_30_35))
+
+
 IDEAS = {
     "active": [],  # ← به‌صورت پویا با get_active_ideas(age) پر می‌شه
     "creative": [
@@ -1045,20 +1216,7 @@ IDEAS = {
          "border": (0.788, 0.502, 0.376, 1),
          "tags": [TAG_ADVENT, _t_time("۳ ساعت"), _t_cost("متوسط")]},
     ],
-    "nature": [
-        {"title": "پیک‌نیک در پارک",
-     "desc": "یه سبد غذا آماده کنید و برید یه پارک سرسبز یه روز رو بگذرونید. از قبل یه سبدِ آماده تدارک ببینید: نان تازه، پنیر، انگور، ترشی و یه ترموس چایی. برای سرگرمی یه دفتر و مداد رنگی هم ببرید و هر کدوم پرتره‌ی ساده‌ی طرف مقابل رو در ۵ دقیقه بکشید — نتیجه معمولاً خنده‌داره.",
-         "border": (0.357, 0.667, 0.498, 1), "fav": True,
-         "tags": [TAG_CALM, _t_time("۴ ساعت"), _t_cost("ارزان")]},
-        {"title": "کوهنوردی صبح زود",
-     "desc": "یه مسیر کوهنوردی سبک پیدا کنید و طلوع آفتاب رو با هم ببینید. مسیرِ راحت رو انتخاب کنید که نیم‌ساعت قبل از طلوع به قله برسید. یه ترموس چایی و چند تیکه شکلات ببرید. قانونِ مسیر رفت این باشه که سکوت رعایت بشه و فقط در برگشت حرف بزنید — این‌جوری طلوع رو با تمرکز کامل تجربه می‌کنید.",
-         "border": (0.788, 0.502, 0.376, 1),
-         "tags": [TAG_SPORT, _t_time("۳ ساعت"), _t_cost("رایگان")]},
-        {"title": "قدم زدن کنار دریاچه",
-     "desc": "یه دریاچه نزدیک شهر پیدا کنید و دور تا دورش قدم بزنید. هدفون‌ها رو در بذارید و از یه اپلیکیشنِ صدای طبیعت استفاده کنید تا صدای موج و پرنده تقویت بشه. هر ۱۵ دقیقه یه سنگِ کوچیک بردارید و در جهت مخالف بندازید — یه رسمِ کوچیک برای این پیاده‌روی.",
-         "border": (0.345, 0.537, 0.800, 1),
-         "tags": [TAG_CALM, _t_time("۲ ساعت"), _t_cost("رایگان")]},
-    ],
+    "nature": [],  # ← به‌صورت پویا با get_nature_ideas(age) پر می‌شه
     "home": [],  # ← به‌صورت پویا با get_home_ideas(age) پر می‌شه
 }
 
@@ -1125,39 +1283,38 @@ def get_device_id(username: str = "") -> str:
 # ---------------------------------------------------------------------------
 # تنظیمات محلی برنامه (کنار SAVE_FILE) — برای به‌خاطرسپاری آخرین مسیر ذخیره‌سازی
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# تنظیمات محلی برنامه — کاملاً در حافظه (In-memory)
+# هیچ فایل تنظیماتی روی دیسک نوشته نمی‌شود. «آخرین مسیر ذخیره‌سازی» فقط تا پایان
+# همین اجرای برنامه به‌خاطر می‌ماند تا ساخت اکانت بعدی راحت‌تر باشد.
+# ---------------------------------------------------------------------------
+_RUNTIME_SETTINGS = {}
+
+
 def load_settings() -> dict:
-    try:
-        if os.path.exists(SETTINGS_FILE):
-            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f) or {}
-    except Exception:
-        pass
-    return {}
+    """تنظیمات موقتِ همین اجرا (سازگار با امضای قبلی؛ بدون فایل)."""
+    return dict(_RUNTIME_SETTINGS)
 
 
 def save_settings(data: dict):
+    """ذخیره‌ی تنظیمات فقط در حافظه (بدون نوشتن روی دیسک)."""
     try:
-        os.makedirs(SAVE_DIR, exist_ok=True)
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        _RUNTIME_SETTINGS.clear()
+        _RUNTIME_SETTINGS.update(data or {})
     except Exception as e:
         print(f"[Settings] خطا: {e}")
 
 
 def get_last_storage_path() -> str:
-    return (load_settings().get("last_storage_path") or "").strip()
+    return (_RUNTIME_SETTINGS.get("last_storage_path") or "").strip()
 
 
 def set_last_storage_path(path: str):
-    data = load_settings()
-    data["last_storage_path"] = path or ""
-    save_settings(data)
+    _RUNTIME_SETTINGS["last_storage_path"] = path or ""
 
 
 def _active_storage_dir() -> str:
-    """مسیر پایه‌ای که کاربر آخرین بار انتخاب کرده (فقط برای ساختِ پوشه‌ی اکانت
-    جدید و bootstrap استفاده می‌شود؛ داده‌ی هیچ اکانتی مستقیماً اینجا نوشته
-    نمی‌شود). مسیرهای content:// (SAF) قابل نوشتن مستقیم نیستند."""
+    """مسیر پایه‌ای که کاربر آخرین بار (در همین اجرا) انتخاب کرده است."""
     p = get_last_storage_path()
     if p and not p.startswith("content://"):
         try:
@@ -1169,28 +1326,17 @@ def _active_storage_dir() -> str:
 
 
 # ---------------------------------------------------------------------------
-# معماری ذخیره‌سازی (نسخه‌ی یکپارچه)
-# ---------------------------------------------------------------------------
-# مدل: «هر اکانت = یک پوشه‌ی مستقل» . تمام داده‌های یک اکانت فقط داخل همان پوشه
-# ذخیره می‌شود:
-#   <folder>/account.json        رکورد کامل اکانت (نام، رمز، سن، آواتار، همدم، خاطرات و ...)
-#   <folder>/device_id.txt       شناسه‌ی دستگاه مخصوص همین اکانت
-#   <folder>/avatar/             عکس پروفایل
-#   <folder>/memories/           عکس‌های خاطره
-#   <folder>/personal_ideas.json ، done_ideas.json ، diary_notes.json
-#
-# تنها فایل سراسری، یک «ایندکس سبک» است:
-#   <SAVE_DIR>/accounts_index.json = {
-#       "folders":        {username: folder_path},   # فقط نگاشت نام‌کاربری → مسیر پوشه
-#       "device_sessions":{device_id: username},     # برای ورود خودکار روی همین دستگاه
-#       "link_codes":     {code: username}           # برای پیدا کردن همدم با کد
-#   }
-# این ایندکس هیچ داده‌ی حساسی (رمز، سن، آواتار، خاطرات) ندارد و صرفاً برای این
-# لازم است که ورود معمولی (نام کاربری + رمز) بدون اسکن کل حافظه کار کند. اگر این
-# فایل پاک شود، ورود «با انتخاب پوشه» هم‌چنان کامل کار می‌کند و ایندکس را می‌سازد.
+# معماری ذخیره‌سازی: «هر اکانت یک پوشه»
+# همه‌ی داده‌های یک اکانت (account.json, device_id.txt, recovery_key.txt,
+# avatar/, memories/, personal_ideas.json, done_ideas.json, diary_notes.json)
+# فقط داخل پوشه‌ی انتخابیِ خود کاربر نوشته می‌شوند.
+# تنها استثنا: known_accounts.json — یک لوکیتورِ حداقلی با ساختار
+# {"username": "storage_folder_path"} و بدون هیچ داده‌ی حساس، که فقط برای
+# «ورود با نام‌کاربری/رمز بدون انتخاب دستیِ پوشه» لازم است.
 # ---------------------------------------------------------------------------
 
-INDEX_FILE = os.path.join(SAVE_DIR, "accounts_index.json")
+KNOWN_ACCOUNTS_FILE = os.path.join(SAVE_DIR, "known_accounts.json")
+RECOVERY_FILENAME = "recovery_key.txt"
 ACCOUNT_FILENAME = "account.json"
 _LOCAL_ACCOUNTS_DIR = os.path.join(SAVE_DIR, "accounts")
 
@@ -1219,28 +1365,91 @@ def _safe_name(username: str) -> str:
     return "".join(ch for ch in (username or "") if ch.isalnum() or ch in "_-") or "user"
 
 
-def load_index() -> dict:
+def _read_known_accounts() -> dict:
+    """لوکیتورِ حداقلی: {username: storage_folder}. هیچ داده‌ی حساسی ندارد."""
+    out = {}
     try:
-        if os.path.exists(INDEX_FILE):
-            with open(INDEX_FILE, "r", encoding="utf-8") as f:
+        if os.path.exists(KNOWN_ACCOUNTS_FILE):
+            with open(KNOWN_ACCOUNTS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f) or {}
-        else:
-            data = {}
+            if isinstance(data, dict):
+                for k, v in data.items():
+                    if isinstance(k, str) and isinstance(v, str) and k and v:
+                        out[k] = v
+    except Exception as e:
+        print(f"[known_accounts] {e}")
+    return out
+
+
+def _write_known_accounts(mapping: dict):
+    """نوشتن لوکیتور (فقط نگاشت نام‌کاربری → مسیر پوشه)."""
+    clean = {}
+    for k, v in (mapping or {}).items():
+        if isinstance(k, str) and isinstance(v, str) and k and v:
+            clean[k] = v
+    try:
+        os.makedirs(SAVE_DIR, exist_ok=True)
+        with open(KNOWN_ACCOUNTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(clean, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[known_accounts] خطا: {e}")
+    # تلاشِ اختیاری: یک کپی از همین لوکیتور کنارِ آخرین پوشه‌ی استفاده‌شده
+    try:
+        base = _active_storage_dir()
+        if base and os.path.normpath(base) != os.path.normpath(SAVE_DIR):
+            with open(os.path.join(base, "known_accounts.json"), "w", encoding="utf-8") as f:
+                json.dump(clean, f, ensure_ascii=False, indent=2)
     except Exception:
-        data = {}
-    data.setdefault("folders", {})
-    data.setdefault("device_sessions", {})
-    data.setdefault("link_codes", {})
+        pass
+
+
+def _discover_account_folders() -> dict:
+    """کشفِ پوشه‌های اکانت: لوکیتور + پوشه‌ی محلیِ اکانت‌ها + آخرین مسیر انتخابی."""
+    folders = dict(_read_known_accounts())
+    search_bases = [_LOCAL_ACCOUNTS_DIR, _active_storage_dir()]
+    for base in search_bases:
+        try:
+            if not base or base.startswith("content://") or not os.path.isdir(base):
+                continue
+            for name in os.listdir(base):
+                sub = os.path.join(base, name)
+                if not os.path.isdir(sub):
+                    continue
+                if os.path.exists(os.path.join(sub, ACCOUNT_FILENAME)):
+                    acc = read_account_file(sub)
+                    uname = (acc.get("username") or "").strip()
+                    if uname and uname not in folders:
+                        folders[uname] = sub
+        except Exception:
+            continue
+    return folders
+
+
+def load_index() -> dict:
+    """ایندکس مجازی (سازگار با امضای قبلی).
+
+    فقط «folders» واقعاً روی دیسک ذخیره می‌شود؛ device_sessions و link_codes
+    از روی همان account.json داخل پوشه‌ی هر اکانت بازسازی می‌شوند.
+    """
+    data = {"folders": _discover_account_folders(),
+            "device_sessions": {}, "link_codes": {}}
+    for uname, folder in list(data["folders"].items()):
+        acc = read_account_file(folder)
+        if not acc:
+            continue
+        did = (acc.get("device_id") or "").strip()
+        if did:
+            data["device_sessions"][did] = uname
+        code = (acc.get("link_code") or "").strip()
+        if code:
+            data["link_codes"][code] = uname
     return data
 
 
 def save_index(idx: dict):
-    try:
-        os.makedirs(SAVE_DIR, exist_ok=True)
-        with open(INDEX_FILE, "w", encoding="utf-8") as f:
-            json.dump(idx, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[Index] خطا: {e}")
+    """فقط نگاشتِ نام‌کاربری → پوشه ذخیره می‌شود (بدون داده‌ی حساس)."""
+    _write_known_accounts((idx or {}).get("folders", {}) or {})
+
 
 
 def default_account_folder(username: str) -> str:
@@ -1252,7 +1461,9 @@ def account_folder(username: str) -> str:
     """پوشه‌ی اختصاصی یک اکانت (از ایندکس؛ در نبود آن مسیر پیش‌فرض)."""
     if not username:
         return default_account_folder("_guest")
-    folder = (load_index().get("folders", {}).get(username) or "").strip()
+    folder = (_read_known_accounts().get(username) or "").strip()
+    if not folder:
+        folder = (_discover_account_folders().get(username) or "").strip()
     if not folder:
         folder = default_account_folder(username)
     if not folder.startswith("content://"):
@@ -1264,12 +1475,13 @@ def account_folder(username: str) -> str:
 
 
 def register_account_folder(username: str, folder: str):
-    """ثبت/به‌روزرسانی نگاشت نام‌کاربری → پوشه در ایندکس سبک."""
+    """ثبت/به‌روزرسانی نگاشت نام‌کاربری → پوشه در لوکیتورِ حداقلی."""
     if not username or not folder:
         return
-    idx = load_index()
-    idx["folders"][username] = folder
-    save_index(idx)
+    mapping = _read_known_accounts()
+    mapping[username] = folder
+    _write_known_accounts(mapping)
+
 
 
 def read_account_file(folder: str) -> dict:
@@ -1312,8 +1524,46 @@ def write_account_file(acc: dict) -> str:
 
 
 def _migrate_legacy_db(idx: dict) -> bool:
-    """مهاجرت یک‌باره از user_data.json سراسری به مدل «هر اکانت یک پوشه»."""
+    """مهاجرت یک‌باره از فایل‌های سراسریِ قدیمی به مدل «هر اکانت یک پوشه».
+
+    user_data.json و accounts_index.json و app_settings.json قدیمی خوانده و
+    بایگانی می‌شوند؛ داده‌ی هر اکانت داخل پوشه‌ی خودش نوشته می‌شود.
+    """
     changed = False
+    legacy_index = os.path.join(SAVE_DIR, "accounts_index.json")
+    try:
+        if os.path.exists(legacy_index):
+            with open(legacy_index, "r", encoding="utf-8") as f:
+                old = json.load(f) or {}
+            for uname, folder in (old.get("folders") or {}).items():
+                if uname and folder and uname not in idx["folders"]:
+                    idx["folders"][uname] = folder
+                    changed = True
+            # انتقال سشن‌ها/کدها به داخل account.json خودِ اکانت‌ها
+            for did, uname in (old.get("device_sessions") or {}).items():
+                acc = read_account_file(idx["folders"].get(uname, ""))
+                if acc and not acc.get("device_id"):
+                    acc["device_id"] = did
+                    write_account_file(acc)
+            for code, uname in (old.get("link_codes") or {}).items():
+                acc = read_account_file(idx["folders"].get(uname, ""))
+                if acc and not acc.get("link_code"):
+                    acc["link_code"] = code
+                    write_account_file(acc)
+            try:
+                os.rename(legacy_index, legacy_index + ".legacy")
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"[migrate-index] {e}")
+
+    for legacy_settings in (os.path.join(SAVE_DIR, "app_settings.json"),):
+        try:
+            if os.path.exists(legacy_settings):
+                os.rename(legacy_settings, legacy_settings + ".legacy")
+        except Exception:
+            pass
+
     legacy_files = [SAVE_FILE, os.path.join(_active_storage_dir(), "user_data.json")]
     for lf in legacy_files:
         try:
@@ -1329,14 +1579,15 @@ def _migrate_legacy_db(idx: dict) -> bool:
                     folder = default_account_folder(uname)
                 acc["username"] = uname
                 acc["storage_folder"] = folder
+                for did, u2 in (data.get("device_sessions") or {}).items():
+                    if u2 == uname and not acc.get("device_id"):
+                        acc["device_id"] = did
+                for code, u3 in (data.get("link_codes") or {}).items():
+                    if u3 == uname and not acc.get("link_code"):
+                        acc["link_code"] = code
                 write_account_file(acc)
                 idx["folders"][uname] = folder
                 changed = True
-            for k in ("device_sessions", "link_codes"):
-                for kk, vv in (data.get(k) or {}).items():
-                    idx[k].setdefault(kk, vv)
-                    changed = True
-            # فایل قدیمی را بایگانی کن تا دیگر به‌عنوان منبع داده استفاده نشود
             try:
                 os.rename(lf, lf + ".legacy")
             except Exception:
@@ -1346,13 +1597,15 @@ def _migrate_legacy_db(idx: dict) -> bool:
     return changed
 
 
+
 def load_db() -> dict:
-    """دیتابیس مجازی: اکانت‌ها از account.json پوشه‌های ثبت‌شده خوانده می‌شوند."""
-    idx = load_index()
+    """دیتابیس مجازی: اکانت‌ها از account.json پوشه‌های شناخته‌شده خوانده می‌شوند."""
+    idx = {"folders": _discover_account_folders()}
     if _migrate_legacy_db(idx):
-        save_index(idx)
+        _write_known_accounts(idx["folders"])
     accounts = {}
     stale = []
+    known = _read_known_accounts()
     for uname, folder in list(idx.get("folders", {}).items()):
         acc = read_account_file(folder)
         if acc:
@@ -1360,39 +1613,66 @@ def load_db() -> dict:
             accounts[uname] = acc
         else:
             stale.append(uname)
-    # پوشه‌هایی که دیگر وجود ندارند از ایندکس حذف می‌شوند
-    if stale:
-        for uname in stale:
-            idx["folders"].pop(uname, None)
-        save_index(idx)
+    # پوشه‌هایی که دیگر وجود ندارند از لوکیتور حذف می‌شوند
+    dirty = False
+    for uname in stale:
+        if uname in known:
+            known.pop(uname, None)
+            dirty = True
+    for uname, folder in idx.get("folders", {}).items():
+        if uname in accounts and known.get(uname) != folder:
+            known[uname] = folder
+            dirty = True
+    if dirty:
+        _write_known_accounts(known)
+
+    device_sessions = {}
+    link_codes = {}
+    for uname, acc in accounts.items():
+        did = (acc.get("device_id") or "").strip()
+        if did:
+            device_sessions[did] = uname
+        code = (acc.get("link_code") or "").strip()
+        if code:
+            link_codes[code] = uname
     return {
         "accounts": accounts,
-        "device_sessions": idx.get("device_sessions", {}),
-        "link_codes": idx.get("link_codes", {}),
+        "device_sessions": device_sessions,
+        "link_codes": link_codes,
     }
 
 
 def save_db(db: dict):
-    """ذخیره: هر اکانت فقط در پوشه‌ی خودش + به‌روزرسانی ایندکس سبک.
-    هیچ آینه‌ای از داده‌ی کامل اکانت در مسیر سراسری نوشته نمی‌شود."""
+    """ذخیره: هر اکانت فقط داخل پوشه‌ی خودش + به‌روزرسانی لوکیتورِ حداقلی.
+
+    device_sessions و link_codes جای مستقلی روی دیسک ندارند؛ آن‌ها از فیلدهای
+    device_id / link_code همان account.json ساخته می‌شوند.
+    """
     try:
-        idx = load_index()
+        known = _read_known_accounts()
         folders = {}
+        sessions = db.get("device_sessions") or {}
+        codes = db.get("link_codes") or {}
         for uname, acc in (db.get("accounts") or {}).items():
             if not isinstance(acc, dict):
                 continue
             acc["username"] = uname
             if not (acc.get("storage_folder") or "").strip():
-                acc["storage_folder"] = idx.get("folders", {}).get(uname) or default_account_folder(uname)
+                acc["storage_folder"] = known.get(uname) or default_account_folder(uname)
+            # همگام‌سازی سشن/کد لینک روی خودِ رکورد اکانت
+            for did, u2 in sessions.items():
+                if u2 == uname:
+                    acc["device_id"] = did
+            my_codes = [c for c, u3 in codes.items() if u3 == uname]
+            if my_codes:
+                acc["link_code"] = my_codes[0]
             folder = write_account_file(acc)
             if folder:
                 folders[uname] = folder
-        idx["folders"] = folders
-        idx["device_sessions"] = db.get("device_sessions", {}) or {}
-        idx["link_codes"] = db.get("link_codes", {}) or {}
-        save_index(idx)
+        _write_known_accounts(folders)
     except Exception as e:
         print(f"[Save] خطا: {e}")
+
 
 
 def username_exists(username: str) -> bool:
@@ -1435,6 +1715,7 @@ def create_account(username: str, password: str, age: int, gender: str,
             os.makedirs(folder, exist_ok=True)
         except Exception:
             pass
+    recovery_key = generate_recovery_key()
     db["accounts"][username] = {
         "username": username,
         "full_name": full_name,
@@ -1450,9 +1731,15 @@ def create_account(username: str, password: str, age: int, gender: str,
         "storage_path": storage_path or "",
         "storage_uri": storage_path or "",
         "storage_folder": folder,
+        "recovery_key": recovery_key,
     }
-    save_db(db)
     register_account_folder(username, folder)
+    save_db(db)
+    # ذخیره‌ی ریکاوری‌کی در فایل متنی داخل همان پوشه‌ی اکانت
+    try:
+        write_recovery_key_file(username, recovery_key)
+    except Exception as e:
+        print(f"[create_account] recovery: {e}")
     # ساخت device_id مخصوص همین اکانت داخل پوشه‌ی خودش
     try:
         get_device_id(username)
@@ -1488,21 +1775,26 @@ def set_session(username: str):
 
 
 def clear_session():
+    """پاک کردن سشن این دستگاه — فقط با بازنویسی account.json خودِ اکانت‌ها."""
     db = load_db()
     changed = False
-    for did, uname in list(db.get("device_sessions", {}).items()):
-        if did == get_device_id(uname):
-            del db["device_sessions"][did]
+    for uname, acc in (db.get("accounts") or {}).items():
+        did = (acc.get("device_id") or "").strip()
+        if did and did == get_device_id(uname):
+            acc["device_id"] = ""
+            db["device_sessions"].pop(did, None)
             changed = True
     if changed:
         save_db(db)
 
 
 def get_session_username() -> str:
+    """پیمایش پوشه‌های شناخته‌شده و مقایسه‌ی device_id داخل account.json."""
     db = load_db()
-    for did, uname in (db.get("device_sessions") or {}).items():
+    for uname, acc in (db.get("accounts") or {}).items():
         try:
-            if did == get_device_id(uname):
+            did = (acc.get("device_id") or "").strip()
+            if did and did == get_device_id(uname):
                 return uname
         except Exception:
             continue
@@ -1510,8 +1802,91 @@ def get_session_username() -> str:
 
 
 # ---------------------------------------------------------------------------
-# سیستم همدم (Partner / Link)
+# ریکاوری‌کی (بازیابی رمز عبور)
 # ---------------------------------------------------------------------------
+def generate_recovery_key(length: int = 24) -> str:
+    """کد تصادفی ۲۴ کاراکتری (حروف بزرگ/کوچک + عدد) — مثل الگوی generate_link_code."""
+    chars = string.ascii_letters + string.digits
+    return "".join(random.choice(chars) for _ in range(length))
+
+
+def write_recovery_key_file(username: str, key: str) -> str:
+    """نوشتن recovery_key.txt داخل پوشه‌ی همان اکانت. مسیر فایل برگردانده می‌شود."""
+    if not username or not key:
+        return ""
+    folder = account_folder(username)
+    if not folder or folder.startswith("content://"):
+        folder = default_account_folder(username)
+    try:
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, RECOVERY_FILENAME)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(key)
+        return path
+    except Exception as e:
+        print(f"[recovery_key] خطا: {e}")
+        return ""
+
+
+def get_recovery_key(username: str) -> str:
+    """ریکاوری‌کیِ اکانت؛ اگر داخل account.json نبود از فایل خوانده می‌شود."""
+    acc = get_account(username) or {}
+    key = (acc.get("recovery_key") or "").strip()
+    if key:
+        return key
+    try:
+        folder = account_folder(username)
+        path = os.path.join(folder, RECOVERY_FILENAME)
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return ""
+
+
+def find_account_by_recovery_key(key: str) -> tuple:
+    """در بین همه‌ی اکانت‌های شناخته‌شده می‌گردد و (username, account_dict) را
+    برای کدِ ریکاوری منطبق برمی‌گرداند؛ اگر پیدا نشد ("", {})."""
+    key = (key or "").strip()
+    if not key:
+        return "", {}
+    db = load_db()
+    for uname, acc in (db.get("accounts") or {}).items():
+        stored = (acc.get("recovery_key") or "").strip()
+        if not stored:
+            # سازگاری با اکانت‌هایی که فقط فایل متنی دارند
+            try:
+                path = os.path.join(acc.get("storage_folder") or "", RECOVERY_FILENAME)
+                if os.path.exists(path):
+                    with open(path, "r", encoding="utf-8") as f:
+                        stored = f.read().strip()
+                    if stored:
+                        acc["recovery_key"] = stored
+                        write_account_file(acc)
+            except Exception:
+                stored = ""
+        if stored and stored == key:
+            return uname, dict(acc)
+    return "", {}
+
+
+def change_password_by_recovery_key(key: str, new_password: str) -> tuple:
+    """تغییر رمز عبور با ریکاوری‌کی. خروجی: (ok, message, username)."""
+    new_password = (new_password or "").strip()
+    if not new_password:
+        return False, "رمز جدید را وارد کنید", ""
+    uname, acc = find_account_by_recovery_key(key)
+    if not uname or not acc:
+        return False, "ریکاوری‌کی نامعتبر است", ""
+    if (acc.get("password") or "") == new_password:
+        return False, "رمز جدید نباید با رمز قبلی یکسان باشد", uname
+    acc["password"] = new_password
+    write_account_file(acc)
+    return True, "رمز عبور با موفقیت تغییر کرد", uname
+
+
+
 def generate_link_code(username: str) -> str:
     db = load_db()
     acc = db["accounts"].get(username)
@@ -1913,7 +2288,7 @@ KV = """
                         size_hint_y: None
                         height: dp(6)
 
-                    BoxLayout:
+                    InputBox:
                         size_hint_y: None
                         height: dp(48)
                         canvas.before:
@@ -1936,7 +2311,7 @@ KV = """
                             padding: dp(14), dp(12)
 
                     # ── نام و نام خانوادگی (فقط در صفحه‌ی ساخت اکانت) ──
-                    BoxLayout:
+                    InputBox:
                         size_hint_y: None
                         height: dp(48) if root.is_signup else 0
                         opacity: 1 if root.is_signup else 0
@@ -1960,7 +2335,7 @@ KV = """
                             cursor_color: 0.8, 0.5, 0.6, 1
                             padding: dp(14), dp(12)
 
-                    BoxLayout:
+                    InputBox:
                         size_hint_y: None
                         height: dp(48)
                         opacity: 1
@@ -1988,6 +2363,24 @@ KV = """
                             id: eye_btn
                             password_field: password_input
                             on_release: self.toggle()
+
+                    # ── لینک «فراموشی رمز عبور؟» (فقط در فرم ورود) ──
+                    Label:
+                        text: app.t_forgot_link
+                        font_name: app.font_name
+                        font_size: sp(12)
+                        bold: True
+                        color: app.theme_accent
+                        underline: True
+                        size_hint_y: None
+                        height: (dp(26) if not root.is_signup else 0)
+                        opacity: (1 if not root.is_signup else 0)
+                        disabled: (True if root.is_signup else False)
+                        halign: "center"
+                        text_size: self.size
+                        valign: "middle"
+                        on_touch_down:
+                            if (not root.is_signup) and self.collide_point(*args[1].pos): root.parent_screen.go_forgot_password()
 
                     # ── فیلد تکرار رمز حذف شده است ──
 
@@ -2864,7 +3257,7 @@ KV = """
                     height: dp(22)
                     halign: "right"
                     text_size: self.size
-                BoxLayout:
+                InputBox:
                     size_hint_y: None
                     height: dp(48)
                     canvas.before:
@@ -2892,7 +3285,7 @@ KV = """
                     height: dp(22)
                     halign: "right"
                     text_size: self.size
-                BoxLayout:
+                InputBox:
                     size_hint_y: None
                     height: dp(48)
                     canvas.before:
@@ -4487,6 +4880,8 @@ class IdeasScreen(Screen):
             ideas_list = get_food_ideas(_age)
         elif cat["id"] == "home":
             ideas_list = get_home_ideas(_age)
+        elif cat["id"] == "nature":
+            ideas_list = get_nature_ideas(_age)
         else:
             ideas_list = IDEAS.get(cat["id"], [])
 
@@ -4995,7 +5390,11 @@ class IdeaDetailScreen(Screen):
             return
         mark_idea_done(uname, self.category_id, self.idea_title)
         self._build_done_button()
-        self._toast(fa("آفرین! این ایده انجام شد ✓"))
+        try:
+            CelebrationPopup(text=fa("آفرین! این ایده انجام شد ✓")).open()
+        except Exception as _e:
+            print("[Celebration]", _e)
+            self._toast(fa("آفرین! این ایده انجام شد ✓"))
         # refresh ideas list badge on return
         try:
             ideas_scr = app.root.get_screen("ideas")
@@ -5726,14 +6125,31 @@ DIARY_KV = """
                 text_size: self.size
             Button:
                 size_hint_x: None
-                width: dp(120)
+                width: dp(126)
+                size_hint_y: None
+                height: dp(42)
+                pos_hint: {'center_y': 0.5}
                 text: root.add_text
                 font_name: app.font_name
                 font_size: sp(14)
+                bold: True
                 color: 1, 1, 1, 1
                 background_normal: ''
-                background_color: 0.20, 0.55, 0.30, 1
+                background_down: ''
+                background_color: 0, 0, 0, 0
                 on_release: root.add_note()
+                canvas.before:
+                    Color:
+                        rgba: 0.20, 0.55, 0.30, 1
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [self.height / 2.0]
+                    Color:
+                        rgba: 1, 1, 1, 0.35
+                    Line:
+                        rounded_rectangle: (self.x + 1, self.y + 1, self.width - 2, self.height - 2, (self.height - 2) / 2.0)
+                        width: 1.2
         ScrollView:
             do_scroll_x: False
             BoxLayout:
@@ -5877,7 +6293,7 @@ ADD_IDEA_KV = """
                     height: dp(22)
                     halign: "right"
                     text_size: self.size
-                BoxLayout:
+                InputBox:
                     size_hint_y: None
                     height: dp(48)
                     canvas.before:
@@ -5909,7 +6325,7 @@ ADD_IDEA_KV = """
                     height: dp(22)
                     halign: "right"
                     text_size: self.size
-                BoxLayout:
+                InputBox:
                     size_hint_y: None
                     height: dp(120)
                     canvas.before:
@@ -6000,7 +6416,7 @@ ADD_IDEA_KV = """
                     size_hint_y: None
                     height: dp(48)
                     spacing: dp(10)
-                    BoxLayout:
+                    InputBox:
                         canvas.before:
                             Color:
                                 rgba: app.theme_input_bg
@@ -6070,6 +6486,10 @@ class AuthBase(Screen):
 
     def _form(self):
         return self.ids.form
+
+    def go_forgot_password(self):
+        """پیش‌فرض: در فرم ساخت اکانت این لینک نمایش داده نمی‌شود."""
+        return
 
     def reset_fields(self):
         f = self._form()
@@ -6335,6 +6755,11 @@ class LoginScreen(AuthBase):
     def go_signup(self):
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "signup"
+
+    def go_forgot_password(self):
+        """رفتن به صفحه‌ی بازیابی رمز (فقط از فرم ورود)."""
+        self.manager.transition = SlideTransition(direction="left")
+        self.manager.current = "forgot_password"
 
     # ---- ورود سریع با انتخاب پوشه‌ی ذخیره‌سازی ----
     def login_by_folder(self):
@@ -6680,6 +7105,487 @@ class HelpScreen(Screen):
         self.manager.current = target
 
 # ---------------------------------------------------------------------------
+# InputBox — کانتینر گردِ باکس‌های ورودی
+# باگ قبلی: فقط بخشی از مساحتِ بصریِ باکس فوکوس می‌گرفت. حالا هر لمس در هر نقطه
+# از کل کادرِ گرد، فوکوس را به فیلد ورودیِ داخلش می‌دهد (رفتار استاندارد موبایل).
+# این کلاس در همه‌ی باکس‌های ورودیِ برنامه به‌طور یکسان استفاده می‌شود.
+# ---------------------------------------------------------------------------
+class InputBox(BoxLayout):
+
+    def find_input(self):
+        """اولین TextInput داخل این کانتینر (جست‌وجوی عرضی)."""
+        stack = list(self.children)
+        while stack:
+            w = stack.pop(0)
+            if isinstance(w, TextInput):
+                return w
+            try:
+                stack.extend(w.children)
+            except Exception:
+                pass
+        return None
+
+    def focus_input(self):
+        ti = self.find_input()
+        if ti is None or ti.disabled:
+            return False
+        try:
+            ti.focus = True
+        except Exception:
+            return False
+        try:
+            if hasattr(ti, "_move_cursor_to_end"):
+                ti._move_cursor_to_end()
+            else:
+                ti.cursor = (len(ti.text or ""), 0)
+        except Exception:
+            pass
+        return True
+
+    def on_touch_down(self, touch):
+        if self.disabled or not self.collide_point(*touch.pos):
+            return super().on_touch_down(touch)
+        btn = getattr(touch, "button", None)
+        if btn is not None and btn != "left":
+            return super().on_touch_down(touch)
+        # اول به بچه‌ها فرصت بده (مثل دکمه‌ی چشمِ رمز)
+        if super().on_touch_down(touch):
+            return True
+        # لمس روی ناحیه‌ی خالیِ کادر → فوکوس روی فیلد ورودی
+        return bool(self.focus_input())
+
+
+try:
+    _Factory.register("InputBox", cls=InputBox)
+except Exception:
+    pass
+
+
+# ---------------------------------------------------------------------------
+# CelebrationPopup — پیام تبریک گرافیکی «انجام دادم»
+# ---------------------------------------------------------------------------
+class CelebrationPopup(ModalView):
+    """مودالِ جشن با آیکون بزرگ، کانفتیِ رنگی و بسته‌شدنِ خودکارِ نرم."""
+
+    def __init__(self, text="", emoji="🎉", duration=2.2, **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = (None, None)
+        self.background = ""
+        self.background_color = (0, 0, 0, 0)
+        self.overlay_color = (0, 0, 0, 0.28)
+        self.auto_dismiss = True
+        self._msg = text or fa("آفرین!")
+        self._emoji = emoji
+        self._duration = max(1.5, min(2.5, float(duration)))
+        self._closing = False
+        self._build()
+
+    # ---------------- ساخت ظاهر ----------------
+    def _build(self):
+        app = App.get_running_app()
+        theme = app.current_theme if app else THEME_WHITE
+        accent = theme["accent"]
+        title_col = theme["title"]
+
+        w = min(dp(320), Window.width * 0.86)
+        h = dp(240)
+        self.size = (w, h)
+        self.pos_hint = {"center_x": 0.5, "center_y": 0.5}
+
+        root = FloatLayout(size_hint=(1, 1))
+
+        card = FloatLayout(size_hint=(1, 1))
+        with card.canvas.before:
+            Color(0, 0, 0, 0.16)
+            self._sh = RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(28)])
+            Color(1, 1, 1, 0.93)
+            self._bg = RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(28)])
+            Color(accent[0], accent[1], accent[2], 0.85)
+            self._ln = Line(rounded_rectangle=(card.x, card.y, card.width, card.height, dp(28)),
+                            width=1.6)
+
+        def _upd(*_a):
+            self._sh.pos = (card.x + dp(2), card.y - dp(3))
+            self._sh.size = card.size
+            self._bg.pos = card.pos
+            self._bg.size = card.size
+            self._ln.rounded_rectangle = (card.x, card.y, card.width, card.height, dp(28))
+        card.bind(pos=_upd, size=_upd)
+
+        # لایه‌ی کانفتی (زیرِ متن)
+        self._confetti_layer = FloatLayout(size_hint=(1, 1))
+        card.add_widget(self._confetti_layer)
+
+        # آیکون جشن با انیمیشن ورودِ فنری
+        self._icon = Label(text=self._emoji, font_size=sp(56),
+                           size_hint=(None, None), size=(dp(90), dp(90)),
+                           pos_hint={"center_x": 0.5, "center_y": 0.68},
+                           halign="center", valign="middle")
+        self._icon.font_size = sp(18)
+        self._icon.opacity = 0
+        card.add_widget(self._icon)
+
+        lbl = Label(text=self._msg, font_name=APP_FONT, font_size=sp(16), bold=True,
+                    color=(title_col[0], title_col[1], title_col[2], 1),
+                    halign="center", valign="middle",
+                    size_hint=(0.86, None), height=dp(58),
+                    pos_hint={"center_x": 0.5, "center_y": 0.28})
+        lbl.bind(size=lambda i, v: setattr(i, "text_size", v))
+        lbl.opacity = 0
+        self._lbl = lbl
+        card.add_widget(lbl)
+
+        root.add_widget(card)
+        self.add_widget(root)
+        self.opacity = 0
+
+    # ---------------- انیمیشن‌ها ----------------
+    def on_open(self):
+        Animation(opacity=1, duration=0.18, t="out_quad").start(self)
+        # ورودِ فنریِ آیکون (اسکیل با font_size)
+        self._icon.opacity = 1
+        Animation(font_size=sp(58), duration=0.55, t="out_back").start(self._icon)
+        Animation(opacity=1, duration=0.35, t="out_quad").start(self._lbl)
+        Clock.schedule_once(lambda dt: self._pulse(), 0.55)
+        self._spawn_confetti()
+        Clock.schedule_once(lambda dt: self._close(), self._duration)
+
+    def _pulse(self, *_a):
+        if self._closing:
+            return
+        (Animation(font_size=sp(64), duration=0.35, t="in_out_sine")
+         + Animation(font_size=sp(58), duration=0.35, t="in_out_sine")).start(self._icon)
+
+    def _spawn_confetti(self):
+        colors = [(0.98, 0.35, 0.45, 1), (0.99, 0.75, 0.20, 1),
+                  (0.30, 0.72, 0.55, 1), (0.36, 0.55, 0.90, 1),
+                  (0.66, 0.42, 0.86, 1)]
+        for _i in range(18):
+            d = random.uniform(dp(7), dp(13))
+            dot = Widget(size_hint=(None, None), size=(d, d))
+            col = random.choice(colors)
+            with dot.canvas:
+                Color(*col)
+                el = Ellipse(pos=dot.pos, size=dot.size)
+            dot._el = el
+            dot.bind(pos=lambda w, v, _e=el: setattr(_e, "pos", v),
+                     size=lambda w, v, _e=el: setattr(_e, "size", v))
+            dot.pos_hint = {}
+            dot.x = self.width * random.uniform(0.08, 0.9)
+            dot.y = self.height * random.uniform(0.85, 1.05)
+            self._confetti_layer.add_widget(dot)
+            anim = Animation(y=self.height * random.uniform(-0.05, 0.12),
+                             x=dot.x + random.uniform(-dp(26), dp(26)),
+                             opacity=0,
+                             duration=random.uniform(1.1, 1.9),
+                             t="in_quad")
+            Clock.schedule_once(lambda dt, _d=dot, _a=anim: _a.start(_d),
+                                random.uniform(0, 0.45))
+
+    def _close(self, *_a):
+        if self._closing:
+            return
+        self._closing = True
+        anim = Animation(opacity=0, duration=0.28, t="in_quad")
+        anim.bind(on_complete=lambda *a: self.dismiss())
+        anim.start(self)
+
+    def on_touch_down(self, touch):
+        # لمس کاربر → بسته شدنِ زودترِ نرم
+        super().on_touch_down(touch)
+        self._close()
+        return True
+
+
+try:
+    _Factory.register("CelebrationPopup", cls=CelebrationPopup)
+except Exception:
+    pass
+
+
+# ---------------------------------------------------------------------------
+# KV صفحه‌ی «فراموشی رمز عبور»
+# ---------------------------------------------------------------------------
+FORGOT_KV = """
+<ForgotPasswordScreen>:
+    canvas.before:
+        Color:
+            rgba: app.theme_bg
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        Color:
+            rgba: app.theme_bubble1
+        Ellipse:
+            pos: self.width * 0.55, self.height * 0.78
+            size: dp(220), dp(220)
+        Color:
+            rgba: app.theme_bubble2
+        Ellipse:
+            pos: -dp(70), -dp(50)
+            size: dp(190), dp(190)
+    ScrollView:
+        do_scroll_x: False
+        BoxLayout:
+            orientation: "vertical"
+            size_hint_y: None
+            height: max(self.minimum_height + dp(20), root.height)
+            padding: dp(18), dp(18)
+            spacing: dp(12)
+
+            BoxLayout:
+                size_hint_y: None
+                height: dp(46)
+                spacing: dp(10)
+                BoxLayout:
+                    size_hint_x: None
+                    width: dp(54)
+                    padding: dp(7)
+                    canvas.before:
+                        Color:
+                            rgba: app.theme_accent
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(14)]
+                    IconImageButton:
+                        source: app.back_image
+                        on_release: root.go_back()
+                Label:
+                    text: app.t_forgot_title
+                    font_name: app.font_name
+                    font_size: sp(19)
+                    bold: True
+                    color: app.theme_title
+                    halign: "right"
+                    valign: "middle"
+                    text_size: self.size
+
+            RTLLabel:
+                id: forgot_desc
+                raw_text: root.desc_raw
+                font_name: app.font_name
+                font_size: sp(14)
+                color: 0.42, 0.36, 0.38, 1
+                size_hint_y: None
+                height: self.texture_size[1] + dp(8)
+
+            InputBox:
+                size_hint_y: None
+                height: dp(50)
+                canvas.before:
+                    Color:
+                        rgba: app.theme_input_bg
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(16)]
+                RTLTextInput:
+                    id: key_input
+                    hint_text: app.t_forgot_hint
+                    font_name: app.font_name
+                    font_size: sp(15)
+                    multiline: False
+                    background_color: 0, 0, 0, 0
+                    foreground_color: 0.3, 0.25, 0.27, 1
+                    hint_text_color: 0.65, 0.6, 0.62, 1
+                    cursor_color: 0.8, 0.5, 0.6, 1
+                    padding: dp(14), dp(14)
+
+            BoxLayout:
+                id: check_holder
+                size_hint_y: None
+                height: dp(52)
+
+            BoxLayout:
+                id: reset_holder
+                orientation: "vertical"
+                size_hint_y: None
+                height: dp(0)
+                spacing: dp(10)
+
+            Widget:
+"""
+
+
+# ---------------------------------------------------------------------------
+# ForgotPasswordScreen — بازیابی/تغییر رمز با ریکاوری‌کی
+# ---------------------------------------------------------------------------
+class ForgotPasswordScreen(Screen):
+    desc_raw = StringProperty("")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._found_user = ""
+        self._found_acc = {}
+        self._check_color = None
+        self._reset_built = False
+        self._new_pw_input = None
+
+    def on_pre_enter(self, *args):
+        app = App.get_running_app()
+        self.desc_raw = (
+            "«ریکاوری‌کی» یک کد ۲۴ کاراکتریِ یکتاست که هنگام ساخت اکانت برای تو ساخته شده و "
+            "داخل فایل recovery_key.txt در همان پوشه‌ای ذخیره شده که موقع ساخت اکانت به‌عنوان "
+            "محل ذخیره‌سازی انتخاب کرده‌ای.\n\n"
+            "با وارد کردن این کد می‌توانی بدون نیاز به رمز قدیمی، رمز عبور اکانتت را تغییر بدهی. "
+            "کافی است فایل را باز کنی، کد را کپی کنی و در کادر زیر بگذاری."
+        )
+        self._found_user = ""
+        self._found_acc = {}
+        try:
+            self.ids.key_input.set_raw_text("")
+        except Exception:
+            pass
+        self._build_check_button()
+        self._hide_reset_box()
+
+    # ---------------- دکمه‌ی بررسی ----------------
+    def _build_check_button(self):
+        holder = self.ids.check_holder
+        holder.clear_widgets()
+        wrap = BoxLayout(size_hint=(1, 1))
+        with wrap.canvas.before:
+            self._check_color = Color(1, 1, 1, 0.98)
+            rr = RoundedRectangle(pos=wrap.pos, size=wrap.size, radius=[dp(16)])
+            Color(0.72, 0.68, 0.70, 0.9)
+            ln = Line(rounded_rectangle=(wrap.x, wrap.y, wrap.width, wrap.height, dp(16)),
+                      width=1.3)
+
+        def _upd(*_a):
+            rr.pos = wrap.pos
+            rr.size = wrap.size
+            ln.rounded_rectangle = (wrap.x, wrap.y, wrap.width, wrap.height, dp(16))
+        wrap.bind(pos=_upd, size=_upd)
+
+        app = App.get_running_app()
+        btn = Button(text=app.t_forgot_check, font_name=APP_FONT, font_size="16sp",
+                     bold=True, background_normal="", background_down="",
+                     background_color=(0, 0, 0, 0), color=(0.25, 0.22, 0.24, 1))
+        self._check_btn = btn
+        btn.bind(on_release=lambda *a: self.check_key())
+        wrap.add_widget(btn)
+        holder.add_widget(wrap)
+
+    def check_key(self):
+        key = ""
+        try:
+            key = self.ids.key_input.get_raw_text().strip()
+        except Exception:
+            pass
+        if not key:
+            show_themed_toast(fa("ریکاوری‌کی را وارد کنید"))
+            return
+        uname, acc = find_account_by_recovery_key(key)
+        if not uname:
+            show_themed_toast(fa("ریکاوری‌کی نامعتبر است"))
+            return
+        self._found_user = uname
+        self._found_acc = acc
+        # انیمیشن نرمِ سفید → سبز روی پس‌زمینه‌ی دکمه
+        if self._check_color is not None:
+            Animation(r=0.231, g=0.722, b=0.216, a=1,
+                      duration=0.45, t="in_out_quad").start(self._check_color)
+        try:
+            self._check_btn.color = (1, 1, 1, 1)
+        except Exception:
+            pass
+        self._show_reset_box()
+
+    # ---------------- باکس رمز جدید ----------------
+    def _hide_reset_box(self):
+        holder = self.ids.reset_holder
+        holder.clear_widgets()
+        holder.height = dp(0)
+        holder.opacity = 0
+        self._reset_built = False
+        self._new_pw_input = None
+
+    def _show_reset_box(self):
+        if self._reset_built:
+            return
+        app = App.get_running_app()
+        holder = self.ids.reset_holder
+        holder.clear_widgets()
+        holder.opacity = 0
+
+        lbl = Label(text=app.t_forgot_newpw, font_name=APP_FONT, font_size="14sp",
+                    bold=True, color=(0.35, 0.30, 0.32, 1),
+                    size_hint_y=None, height=dp(24),
+                    halign="right", valign="middle")
+        lbl.bind(size=lambda i, v: setattr(i, "text_size", v))
+        holder.add_widget(lbl)
+
+        box = InputBox(size_hint_y=None, height=dp(50))
+        with box.canvas.before:
+            Color(*(app.theme_input_bg if app else (0.96, 0.94, 0.95, 1)))
+            rr = RoundedRectangle(pos=box.pos, size=box.size, radius=[dp(16)])
+        box.bind(pos=lambda w, v, _r=rr: setattr(_r, "pos", v),
+                 size=lambda w, v, _r=rr: setattr(_r, "size", v))
+        pw = RTLTextInput(hint_text=app.t_forgot_newpw, font_name=APP_FONT,
+                          font_size="15sp", multiline=False, password=True,
+                          background_color=(0, 0, 0, 0),
+                          foreground_color=(0.3, 0.25, 0.27, 1),
+                          hint_text_color=(0.65, 0.6, 0.62, 1),
+                          cursor_color=(0.8, 0.5, 0.6, 1),
+                          padding=(dp(14), dp(14)))
+        self._new_pw_input = pw
+        box.add_widget(pw)
+        holder.add_widget(box)
+
+        btn_wrap = BoxLayout(size_hint_y=None, height=dp(50))
+        with btn_wrap.canvas.before:
+            Color(0.231, 0.722, 0.216, 1)
+            rr2 = RoundedRectangle(pos=btn_wrap.pos, size=btn_wrap.size, radius=[dp(16)])
+        btn_wrap.bind(pos=lambda w, v, _r=rr2: setattr(_r, "pos", v),
+                      size=lambda w, v, _r=rr2: setattr(_r, "size", v))
+        submit = Button(text=app.t_forgot_submit, font_name=APP_FONT, font_size="16sp",
+                        bold=True, background_normal="", background_down="",
+                        background_color=(0, 0, 0, 0), color=(1, 1, 1, 1))
+        submit.bind(on_release=lambda *a: self.submit_new_password())
+        btn_wrap.add_widget(submit)
+        holder.add_widget(btn_wrap)
+
+        holder.height = dp(24) + dp(50) + dp(50) + dp(20)
+        holder.y -= dp(14)
+        self._reset_built = True
+        Animation(opacity=1, duration=0.35, t="out_quad").start(holder)
+        Animation(y=holder.y + dp(14), duration=0.35, t="out_back").start(holder)
+
+    def submit_new_password(self):
+        new_pw = ""
+        try:
+            new_pw = (self._new_pw_input.get_raw_text() or "").strip()
+        except Exception:
+            pass
+        if not new_pw:
+            show_themed_toast(fa("رمز جدید را وارد کنید"))
+            return
+        key = ""
+        try:
+            key = self.ids.key_input.get_raw_text().strip()
+        except Exception:
+            pass
+        ok, msg, uname = change_password_by_recovery_key(key, new_pw)
+        if not ok:
+            show_themed_toast(fa(msg))
+            return
+        show_themed_toast(fa("رمز عبور با موفقیت تغییر کرد ✓"))
+        Clock.schedule_once(lambda dt: self._back_to_login(), 1.6)
+
+    def _back_to_login(self):
+        try:
+            self.manager.transition = SlideTransition(direction="right")
+            self.manager.current = "login"
+        except Exception:
+            pass
+
+    def go_back(self):
+        self.manager.transition = SlideTransition(direction="right")
+        self.manager.current = "login"
+
+
+# ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 class LahzeSazApp(App):
@@ -6735,6 +7641,13 @@ class LahzeSazApp(App):
     t_rules_body = StringProperty("")
     t_rules_ok_btn = StringProperty("")
     t_folder_login_link = StringProperty("")
+    t_forgot_link = StringProperty("")
+    t_forgot_title = StringProperty("")
+    t_forgot_desc = StringProperty("")
+    t_forgot_hint = StringProperty("")
+    t_forgot_check = StringProperty("")
+    t_forgot_newpw = StringProperty("")
+    t_forgot_submit = StringProperty("")
     t_help_title = StringProperty("")
     t_help_body_login = StringProperty("")
     t_help_body_signup = StringProperty("")
@@ -6804,6 +7717,19 @@ class LahzeSazApp(App):
 
         # متن‌های راهنما (اختیاری)
         self.t_folder_login_link = fa("ورود با فولدر محل ذخیره اطلاعات")
+        self.t_forgot_link = fa("فراموشی رمز عبور؟")
+        self.t_forgot_title = fa("بازیابی رمز عبور")
+        self.t_forgot_desc = fa(
+            "«ریکاوری‌کی» یک کد ۲۴ کاراکتریِ یکتاست که هنگام ساخت اکانت برای تو ساخته شده "
+            "و داخل فایل recovery_key.txt در همان پوشه‌ای ذخیره شده که موقع ساخت اکانت "
+            "به‌عنوان محل ذخیره‌سازی انتخاب کردی.\n\n"
+            "با وارد کردن این کد می‌تونی بدون نیاز به رمز قدیمی، رمز عبور اکانتت رو عوض کنی. "
+            "کافیه فایل رو باز کنی، کد رو کپی کنی و در کادر زیر بذاری."
+        )
+        self.t_forgot_hint = fa("ریکاوری‌کی را اینجا وارد یا پیست کنید")
+        self.t_forgot_check = fa("بررسی")
+        self.t_forgot_newpw = fa("رمز جدید")
+        self.t_forgot_submit = fa("ثبت")
         self.t_help_title = fa("راهنما")
         self.t_help_back_btn = fa("بازگشت")
         self.t_help_body_login = fa(
@@ -6866,12 +7792,13 @@ class LahzeSazApp(App):
             "همه‌ی این راهنماها اختیاری هستن و برنامه بدونشون هم قابل استفاده‌ست."
         )
 
-        Builder.load_string(KV + DIARY_KV + ADD_IDEA_KV)
+        Builder.load_string(KV + DIARY_KV + ADD_IDEA_KV + FORGOT_KV)
         sm = RootManager()
         sm.add_widget(LoginScreen(name="login"))
         sm.add_widget(SignupScreen(name="signup"))
         sm.add_widget(RulesScreen(name="rules"))
         sm.add_widget(HelpScreen(name="help"))
+        sm.add_widget(ForgotPasswordScreen(name="forgot_password"))
         sm.add_widget(CategoriesScreen(name="categories"))
         sm.add_widget(IdeasScreen(name="ideas"))
         sm.add_widget(IdeaDetailScreen(name="idea_detail"))
