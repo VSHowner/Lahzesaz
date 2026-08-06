@@ -228,6 +228,8 @@ ASSET_FILES = {
     "setting":         "setting.png",
     "square":          "square.png",
     "note":            "note.png",
+    "sun":             "sun.png",
+    "moon":            "moon.png",
 }
 
 _MISSING_ASSETS_LOGGED = set()
@@ -361,6 +363,42 @@ THEME_WHITE = {
     "bubble2": (0.90, 0.90, 0.93, 1), "gender_sel": (0.94, 0.94, 0.97, 1),
     "gender_brd_sel": (0.55, 0.58, 0.65, 1), "avatar_ring": (0.55, 0.58, 0.65, 1),
     "cat_sub": (0.50, 0.50, 0.55, 1),
+}
+
+# --- نسخه‌های تیره (تم مشکی) --------------------------------------------
+# رنگ جنسیتی (accent/title/gender_sel/gender_brd_sel/avatar_ring) دقیقاً همان
+# نسخه‌ی روشن می‌ماند؛ فقط رنگ‌های خنثی تیره می‌شوند.
+THEME_PINK_DARK = {
+    "bg": (0.09, 0.08, 0.09, 1), "accent": THEME_PINK["accent"],
+    "accent_soft": (0.86, 0.60, 0.68, 0.22), "card_border": (0.30, 0.24, 0.27, 0.7),
+    "title": THEME_PINK["title"], "input_bg": (0.16, 0.14, 0.16, 1),
+    "window_bg": (0.07, 0.06, 0.07, 1), "bubble1": (0.16, 0.13, 0.17, 1),
+    "bubble2": (0.13, 0.16, 0.15, 1), "gender_sel": THEME_PINK["gender_sel"],
+    "gender_brd_sel": THEME_PINK["gender_brd_sel"],
+    "avatar_ring": THEME_PINK["avatar_ring"],
+    "cat_sub": (0.72, 0.68, 0.70, 1),
+}
+
+THEME_BLUE_DARK = {
+    "bg": (0.07, 0.09, 0.11, 1), "accent": THEME_BLUE["accent"],
+    "accent_soft": (0.42, 0.66, 0.87, 0.22), "card_border": (0.22, 0.28, 0.35, 0.7),
+    "title": THEME_BLUE["title"], "input_bg": (0.13, 0.16, 0.19, 1),
+    "window_bg": (0.06, 0.07, 0.09, 1), "bubble1": (0.12, 0.17, 0.22, 1),
+    "bubble2": (0.11, 0.15, 0.19, 1), "gender_sel": THEME_BLUE["gender_sel"],
+    "gender_brd_sel": THEME_BLUE["gender_brd_sel"],
+    "avatar_ring": THEME_BLUE["avatar_ring"],
+    "cat_sub": (0.68, 0.74, 0.82, 1),
+}
+
+# معادل تیره‌ی THEME_WHITE (وقتی هنوز جنسیت انتخاب نشده)
+THEME_BLACK = {
+    "bg": (0.08, 0.08, 0.09, 1), "accent": (0.62, 0.65, 0.72, 1),
+    "accent_soft": (0.62, 0.65, 0.72, 0.20), "card_border": (0.25, 0.25, 0.28, 0.7),
+    "title": (0.92, 0.92, 0.94, 1), "input_bg": (0.15, 0.15, 0.17, 1),
+    "window_bg": (0.06, 0.06, 0.07, 1), "bubble1": (0.14, 0.14, 0.17, 1),
+    "bubble2": (0.12, 0.12, 0.15, 1), "gender_sel": (0.20, 0.20, 0.23, 1),
+    "gender_brd_sel": (0.62, 0.65, 0.72, 1), "avatar_ring": (0.62, 0.65, 0.72, 1),
+    "cat_sub": (0.70, 0.70, 0.75, 1),
 }
 
 # ---------------------------------------------------------------------------
@@ -2365,7 +2403,7 @@ KV = """
                             on_release: self.toggle()
 
                     # ── لینک «فراموشی رمز عبور؟» (فقط در فرم ورود) ──
-                    Label:
+                    LinkLabel:
                         text: app.t_forgot_link
                         font_name: app.font_name
                         font_size: sp(12)
@@ -2373,14 +2411,13 @@ KV = """
                         color: app.theme_accent
                         underline: True
                         size_hint_y: None
-                        height: (dp(26) if not root.is_signup else 0)
+                        height: (dp(34) if not root.is_signup else 0)
                         opacity: (1 if not root.is_signup else 0)
                         disabled: (True if root.is_signup else False)
                         halign: "center"
                         text_size: self.size
                         valign: "middle"
-                        on_touch_down:
-                            if (not root.is_signup) and self.collide_point(*args[1].pos): root.parent_screen.go_forgot_password()
+                        on_release: root.parent_screen.go_forgot_password()
 
                     # ── فیلد تکرار رمز حذف شده است ──
 
@@ -2896,6 +2933,29 @@ KV = """
                 size_hint_y: None
                 height: self.minimum_height
                 padding: dp(8), dp(10)
+
+    # ── دکمه‌ی تغییر تم (بالا-چپ، شیشه‌ای و گرد) ──
+    FloatLayout:
+        size_hint: 1, 1
+        BoxLayout:
+            size_hint: None, None
+            size: dp(44), dp(44)
+            pos_hint: {"x": 0.045, "top": 0.985}
+            padding: dp(7)
+            canvas.before:
+                Color:
+                    rgba: 0.55, 0.58, 0.62, 0.35
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(13)]
+                Color:
+                    rgba: 1, 1, 1, 0.18
+                Line:
+                    rounded_rectangle: (self.x + dp(1), self.y + dp(1), self.width - dp(2), self.height - dp(2), dp(13))
+                    width: 1
+            ThemeToggleButton:
+                id: theme_toggle_btn
 
 <IdeaCard>:
     orientation: "vertical"
@@ -3686,6 +3746,64 @@ class RulesCheckbox(ButtonBehavior, BoxLayout):
 # ---------------------------------------------------------------------------
 # IconImageButton — یک دکمه‌ی تصویری ساده
 # ---------------------------------------------------------------------------
+class ThemeToggleButton(ButtonBehavior, Image):
+    """دکمه‌ی چرخشی تعویض تم (خورشید/ماه) — سواپ عکس دقیقاً در ۱۸۰ درجه."""
+    angle = NumericProperty(0)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.allow_stretch = True
+        self.keep_ratio = True
+        self._busy = False
+        app = App.get_running_app()
+        dark = bool(app.dark_mode) if app else False
+        self.source = resolve_asset("moon" if dark else "sun")
+        with self.canvas.before:
+            PushMatrix()
+            self._rot = Rotate(angle=0, origin=self.center)
+        with self.canvas.after:
+            PopMatrix()
+        self.bind(pos=self._update_origin, size=self._update_origin,
+                  angle=self._apply_angle)
+
+    def _update_origin(self, *a):
+        self._rot.origin = self.center
+
+    def _apply_angle(self, *a):
+        self._rot.origin = self.center
+        self._rot.angle = self.angle
+
+    def on_release(self):
+        if self._busy:
+            return
+        self._busy = True
+        self.angle = 0
+        anim = Animation(angle=-180, duration=0.28, t="in_out_quad")
+        anim.bind(on_complete=lambda *a: self._swap_half())
+        anim.start(self)
+
+    def _swap_half(self):
+        app = App.get_running_app()
+        new_dark = not bool(app.dark_mode) if app else True
+        if app:
+            app.dark_mode = new_dark
+        self.source = resolve_asset("moon" if new_dark else "sun")
+        if app:
+            app.set_theme(app.active_gender)
+        anim = Animation(angle=-360, duration=0.28, t="in_out_quad")
+        anim.bind(on_complete=lambda *a: self._finish_spin())
+        anim.start(self)
+
+    def _finish_spin(self):
+        self.angle = 0
+        self._busy = False
+
+
+class LinkLabel(ButtonBehavior, Label):
+    """لیبل قابل کلیک با ناحیه‌ی لمسی قطعی (مستقل از bind شرطی height/opacity)."""
+    pass
+
+
 class IconImageButton(ButtonBehavior, Image):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3867,7 +3985,10 @@ class PhotoSourceMenu(ModalView):
         self.title = ""
         self.separator_height = 0
         self.background = ""
-        self.background_color = (0, 0, 0, 0.45)
+        # پس‌زمینه‌ی خودِ ModalView کاملاً شفاف تا مستطیل تیزگوشه دیده نشود؛
+        # تیره کردن پشت صفحه با overlay_color انجام می‌شود.
+        self.background_color = (0, 0, 0, 0)
+        self.overlay_color = (0, 0, 0, 0.45)
         self.auto_dismiss = True
         self._build()
 
@@ -3878,6 +3999,10 @@ class PhotoSourceMenu(ModalView):
 
         root = BoxLayout(orientation="vertical", padding=dp(18), spacing=dp(14))
         with root.canvas.before:
+            Color(0, 0, 0, 0.10)
+            self._sh2 = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
+            Color(0, 0, 0, 0.16)
+            self._sh = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
             Color(1, 1, 1, 0.28)
             self._bg = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
             Color(1, 1, 1, 0.55)
@@ -3918,6 +4043,13 @@ class PhotoSourceMenu(ModalView):
     def _upd_bg(self, *a):
         self._bg.pos = self._root.pos
         self._bg.size = self._root.size
+        try:
+            self._sh.pos = (self._root.x + dp(2), self._root.y - dp(3))
+            self._sh.size = self._root.size
+            self._sh2.pos = (self._root.x + dp(4), self._root.y - dp(6))
+            self._sh2.size = self._root.size
+        except Exception:
+            pass
         self._brd.rounded_rectangle = (self._root.x, self._root.y,
                                        self._root.width, self._root.height, dp(26))
 
@@ -4027,13 +4159,20 @@ class SettingsMenu(ModalView):
         self.title = ""
         self.separator_height = 0
         self.background = ""
-        self.background_color = (0, 0, 0, 0.45)
+        # پس‌زمینه‌ی خودِ ModalView کاملاً شفاف تا مستطیل تیزگوشه دیده نشود؛
+        # تیره کردن پشت صفحه با overlay_color انجام می‌شود.
+        self.background_color = (0, 0, 0, 0)
+        self.overlay_color = (0, 0, 0, 0.45)
         self.auto_dismiss = True
         self._build()
 
     def _build(self):
         root = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(12))
         with root.canvas.before:
+            Color(0, 0, 0, 0.10)
+            self._sh2 = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(22)])
+            Color(0, 0, 0, 0.16)
+            self._sh = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(22)])
             Color(0.22, 0.22, 0.25, 0.97)
             self._bg = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(22)])
             Color(0.45, 0.45, 0.50, 0.8)
@@ -4117,6 +4256,13 @@ class SettingsMenu(ModalView):
     def _upd_bg(self, *a):
         self._bg.pos = self._root.pos
         self._bg.size = self._root.size
+        try:
+            self._sh.pos = (self._root.x + dp(2), self._root.y - dp(3))
+            self._sh.size = self._root.size
+            self._sh2.pos = (self._root.x + dp(4), self._root.y - dp(6))
+            self._sh2.size = self._root.size
+        except Exception:
+            pass
         self._brd.rounded_rectangle = (self._root.x, self._root.y,
                                        self._root.width, self._root.height, dp(22))
 
@@ -4145,7 +4291,10 @@ class PartnerMenu(ModalView):
         self.title = ""
         self.separator_height = 0
         self.background = ""
-        self.background_color = (0, 0, 0, 0.45)
+        # پس‌زمینه‌ی خودِ ModalView کاملاً شفاف تا مستطیل تیزگوشه دیده نشود؛
+        # تیره کردن پشت صفحه با overlay_color انجام می‌شود.
+        self.background_color = (0, 0, 0, 0)
+        self.overlay_color = (0, 0, 0, 0.45)
         self.auto_dismiss = True
         self._generated_code = ""
         self._build()
@@ -4157,6 +4306,10 @@ class PartnerMenu(ModalView):
 
         root = BoxLayout(orientation="vertical", padding=dp(18), spacing=dp(14))
         with root.canvas.before:
+            Color(0, 0, 0, 0.10)
+            self._sh2 = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
+            Color(0, 0, 0, 0.16)
+            self._sh = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
             Color(1, 1, 1, 0.30)
             self._bg = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
             Color(1, 1, 1, 0.55)
@@ -4251,6 +4404,13 @@ class PartnerMenu(ModalView):
     def _upd_bg(self, *a):
         self._bg.pos = self._root.pos
         self._bg.size = self._root.size
+        try:
+            self._sh.pos = (self._root.x + dp(2), self._root.y - dp(3))
+            self._sh.size = self._root.size
+            self._sh2.pos = (self._root.x + dp(4), self._root.y - dp(6))
+            self._sh2.size = self._root.size
+        except Exception:
+            pass
         self._brd.rounded_rectangle = (self._root.x, self._root.y,
                                        self._root.width, self._root.height, dp(26))
 
@@ -4926,7 +5086,9 @@ class IdeasScreen(Screen):
             )
             tags_box = card.ids.tags_box
             for txt, bg, fg in idea["tags"]:
-                tag = BoxLayout(size_hint_x=None, width=dp(70), padding=(dp(8), 0))
+                # FloatLayout به‌جای BoxLayout تا حلقه‌ی فیدبک سایز
+                # (label.texture_size -> box.width -> label.size -> ...) شکسته شود.
+                tag = FloatLayout(size_hint_x=None, width=dp(70))
                 with tag.canvas.before:
                     Color(*bg)
                     rr = RoundedRectangle(pos=tag.pos, size=tag.size, radius=[dp(12)])
@@ -4934,9 +5096,15 @@ class IdeasScreen(Screen):
                     _rr.pos = inst.pos; _rr.size = inst.size
                 tag.bind(pos=_upd, size=_upd)
                 lbl = Label(text=fa(txt), font_name=APP_FONT, font_size="11sp",
-                            color=fg, halign="center", valign="middle")
-                lbl.bind(size=lambda i, v: setattr(i, "text_size", v),
-                         texture_size=lambda i, v: setattr(tag, "width", v[0] + dp(20)))
+                            color=fg, halign="center", valign="middle",
+                            size_hint=(None, None),
+                            pos_hint={"center_x": 0.5, "center_y": 0.5})
+                # فقط یک‌طرفه: texture_size -> سایز لیبل و عرض کانتینر
+                def _sync(inst, ts, _tag=tag):
+                    inst.size = ts
+                    _tag.width = ts[0] + dp(20)
+                lbl.bind(texture_size=_sync)
+                _sync(lbl, lbl.texture_size)
                 tag.add_widget(lbl)
                 tags_box.add_widget(tag)
             # spacer
@@ -5237,7 +5405,7 @@ class IdeaDetailScreen(Screen):
         tags_box = self.ids.detail_tags_box
         tags_box.clear_widgets()
         for txt, bg, fg in (idea or {}).get("tags", []):
-            tag = BoxLayout(size_hint_x=None, width=dp(70), padding=(dp(8), 0))
+            tag = FloatLayout(size_hint_x=None, width=dp(70))
             with tag.canvas.before:
                 Color(*bg)
                 rr = RoundedRectangle(pos=tag.pos, size=tag.size, radius=[dp(12)])
@@ -5245,9 +5413,14 @@ class IdeaDetailScreen(Screen):
                 _rr.pos = inst.pos; _rr.size = inst.size
             tag.bind(pos=_upd, size=_upd)
             lbl = Label(text=fa(txt), font_name=APP_FONT, font_size="11sp",
-                        color=fg, halign="center", valign="middle")
-            lbl.bind(size=lambda i, v: setattr(i, "text_size", v),
-                     texture_size=lambda i, v: setattr(tag, "width", v[0] + dp(20)))
+                        color=fg, halign="center", valign="middle",
+                        size_hint=(None, None),
+                        pos_hint={"center_x": 0.5, "center_y": 0.5})
+            def _sync(inst, ts, _tag=tag):
+                inst.size = ts
+                _tag.width = ts[0] + dp(20)
+            lbl.bind(texture_size=_sync)
+            _sync(lbl, lbl.texture_size)
             tag.add_widget(lbl)
             tags_box.add_widget(tag)
         tags_box.add_widget(BoxLayout())
@@ -6823,7 +6996,50 @@ class LoginScreen(AuthBase):
             App.get_running_app().skip_autologin = False
             self._enter_app(match)
 
-        # 1) تلاش برای filechooser دسکتاپ/plyer
+        # 1) اندروید: مستقیماً SAF (دقیقاً مثل pick_storage_folder که روی APK کار می‌کند).
+        #    plyer روی اندروید بدون خطا برمی‌گردد ولی عملاً کار نمی‌کند، پس
+        #    نباید اول امتحان شود.
+        try:
+            from jnius import autoclass, cast  # type: ignore
+            from android import activity  # type: ignore
+            Intent = autoclass("android.content.Intent")
+            PythonActivity = autoclass("org.kivy.android.PythonActivity")
+            current_activity = PythonActivity.mActivity
+            intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            intent.addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+            )
+
+            def on_activity_result(request_code, result_code, data):
+                try:
+                    if data is None:
+                        Clock.schedule_once(lambda dt: _finish(""), 0)
+                        return
+                    uri = data.getData()
+                    if uri is None:
+                        Clock.schedule_once(lambda dt: _finish(""), 0)
+                        return
+                    try:
+                        current_activity.getContentResolver().takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                        )
+                    except Exception:
+                        pass
+                    Clock.schedule_once(lambda dt: _finish(uri.toString()), 0)
+                except Exception:
+                    Clock.schedule_once(lambda dt: _finish(""), 0)
+
+            activity.bind(on_activity_result=on_activity_result)
+            current_activity.startActivityForResult(intent, 0xF01E)
+            return
+        except Exception as e:
+            print(f"[login_by_folder][SAF] {type(e).__name__}: {e}")
+
+        # 2) fallback دسکتاپ/غیراندروید: plyer.filechooser
         try:
             if _PLYER_AVAILABLE:
                 def _cb(selection):
@@ -6834,39 +7050,17 @@ class LoginScreen(AuthBase):
                 try:
                     plyer_filechooser.choose_dir(on_selection=_cb)
                     return
-                except Exception:
+                except Exception as e1:
+                    print(f"[login_by_folder][plyer.choose_dir] {type(e1).__name__}: {e1}")
                     try:
                         plyer_filechooser.open_file(on_selection=_cb)
                         return
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-
-        # 2) تلاش برای SAF اندروید
-        try:
-            from jnius import autoclass  # type: ignore
-            from android import activity  # type: ignore
-            Intent = autoclass("android.content.Intent")
-            PythonActivity = autoclass("org.kivy.android.PythonActivity")
-            current_activity = PythonActivity.mActivity
-            intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-
-            def on_activity_result(request_code, result_code, data):
-                try:
-                    if data is None:
-                        Clock.schedule_once(lambda dt: _finish(""), 0)
-                        return
-                    uri = data.getData()
-                    Clock.schedule_once(lambda dt: _finish(uri.toString() if uri else ""), 0)
-                except Exception:
-                    Clock.schedule_once(lambda dt: _finish(""), 0)
-
-            activity.bind(on_activity_result=on_activity_result)
-            current_activity.startActivityForResult(intent, 0xF01E)
-            return
-        except Exception:
-            pass
+                    except Exception as e2:
+                        print(f"[login_by_folder][plyer.open_file] {type(e2).__name__}: {e2}")
+            else:
+                print("[login_by_folder][plyer] not available")
+        except Exception as e:
+            print(f"[login_by_folder][plyer] {type(e).__name__}: {e}")
 
         self.show_toast(fa("انتخابگر پوشه در دسترس نیست"))
 
@@ -7611,6 +7805,7 @@ class LahzeSazApp(App):
     theme_bubble2 = ListProperty(list(THEME_WHITE["bubble2"]))
     theme_cat_sub = ListProperty(list(THEME_WHITE["cat_sub"]))
     current_theme = THEME_WHITE
+    dark_mode = BooleanProperty(False)
     _theme_anim = None
 
     t_title = StringProperty("")
@@ -7809,12 +8004,13 @@ class LahzeSazApp(App):
         return sm
 
     def set_theme(self, gender: str):
+        dark = bool(self.dark_mode)
         if gender == "male":
-            target = THEME_BLUE
+            target = THEME_BLUE_DARK if dark else THEME_BLUE
         elif gender == "female":
-            target = THEME_PINK
+            target = THEME_PINK_DARK if dark else THEME_PINK
         else:
-            target = THEME_WHITE
+            target = THEME_BLACK if dark else THEME_WHITE
         if target is self.current_theme:
             self._refresh_avatars()
             return
