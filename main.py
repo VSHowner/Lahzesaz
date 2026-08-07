@@ -1,6 +1,7 @@
 
 import os
 import json
+import functools
 import shutil
 import uuid
 import random
@@ -98,6 +99,7 @@ except Exception as _e:
         return t
 
 
+@functools.lru_cache(maxsize=4000)
 def _reshape_step(text: str) -> str:
     """مرحله‌ی ۱ — چسباندن حروف. خطا را قابل مشاهده در logcat می‌کند."""
     if not text or not _RESHAPE_AVAILABLE or _reshaper is None:
@@ -109,6 +111,7 @@ def _reshape_step(text: str) -> str:
         return text
 
 
+@functools.lru_cache(maxsize=4000)
 def _bidi_step(text: str) -> str:
     """مرحله‌ی ۲ — بازچینی دوسویه. خطا را قابل مشاهده در logcat می‌کند."""
     if not text or not _BIDI_AVAILABLE:
@@ -400,6 +403,79 @@ THEME_BLACK = {
     "gender_brd_sel": (0.62, 0.65, 0.72, 1), "avatar_ring": (0.62, 0.65, 0.72, 1),
     "cat_sub": (0.70, 0.70, 0.75, 1),
 }
+
+# ---------------------------------------------------------------------------
+# پالت خنثی (neutral) — پس‌زمینه‌ها، متن‌های عمومی، بوردرها و کارت‌ها
+# رنگ‌های برندی/جنسیتی (accent, gender_sel, gender_brd_sel, avatar_ring) و
+# رنگ تگ‌های دسته‌بندی ایده‌ها عمداً اینجا نیستند و دست‌نخورده می‌مانند.
+# ---------------------------------------------------------------------------
+NEUTRAL_LIGHT = {
+    "surface": (1.00, 1.00, 1.00, 1.00),
+    "surface_92": (1.00, 1.00, 1.00, 0.92),
+    "surface_soft": (1.00, 1.00, 1.00, 0.55),
+    "surface_glass": (1.00, 1.00, 1.00, 0.28),
+    "glass_grey": (0.55, 0.55, 0.58, 0.32),
+    "glass_border": (1.00, 1.00, 1.00, 0.55),
+    "text_primary": (0.35, 0.30, 0.32, 1.00),
+    "text_secondary": (0.55, 0.50, 0.52, 1.00),
+    "text_body": (0.48, 0.38, 0.40, 1.00),
+    "text_strong": (0.23, 0.13, 0.16, 1.00),
+    "text_hint": (0.65, 0.60, 0.62, 1.00),
+    "border": (0.85, 0.85, 0.88, 0.70),
+    "divider": (0.80, 0.78, 0.80, 0.45),
+    "avatar_inner": (0.96, 0.93, 0.94, 1.00),
+    "dialog_bg": (0.20, 0.20, 0.23, 0.98),
+    "dialog_border": (0.45, 0.45, 0.50, 0.80),
+    "dialog_text": (0.95, 0.95, 0.96, 1.00),
+    "paper": (1.00, 0.99, 0.93, 1.00),
+    "paper_line": (0.80, 0.72, 0.50, 0.55),
+    "paper_text": (0.25, 0.20, 0.18, 1.00),
+    "paper_sub": (0.55, 0.45, 0.30, 1.00),
+    "info_male": (0.88, 0.94, 1.00, 1.00),
+    "info_female": (1.00, 0.92, 0.95, 1.00),
+}
+
+NEUTRAL_DARK = {
+    "surface": (0.15, 0.15, 0.17, 1.00),
+    "surface_92": (0.14, 0.14, 0.16, 0.94),
+    "surface_soft": (0.24, 0.24, 0.27, 0.75),
+    "surface_glass": (0.30, 0.30, 0.34, 0.35),
+    "glass_grey": (0.30, 0.30, 0.34, 0.40),
+    "glass_border": (1.00, 1.00, 1.00, 0.16),
+    "text_primary": (0.93, 0.93, 0.95, 1.00),
+    "text_secondary": (0.74, 0.72, 0.75, 1.00),
+    "text_body": (0.82, 0.79, 0.81, 1.00),
+    "text_strong": (0.96, 0.96, 0.97, 1.00),
+    "text_hint": (0.62, 0.60, 0.63, 1.00),
+    "border": (0.35, 0.35, 0.40, 0.70),
+    "divider": (1.00, 1.00, 1.00, 0.12),
+    "avatar_inner": (0.18, 0.17, 0.19, 1.00),
+    "dialog_bg": (0.12, 0.12, 0.14, 0.98),
+    "dialog_border": (0.38, 0.38, 0.43, 0.80),
+    "dialog_text": (0.94, 0.94, 0.96, 1.00),
+    "paper": (0.15, 0.14, 0.12, 1.00),
+    "paper_line": (0.45, 0.40, 0.28, 0.55),
+    "paper_text": (0.93, 0.91, 0.86, 1.00),
+    "paper_sub": (0.72, 0.66, 0.52, 1.00),
+    "info_male": (0.13, 0.16, 0.21, 1.00),
+    "info_female": (0.20, 0.14, 0.17, 1.00),
+}
+
+# کلیدهایی که به‌صورت پراپرتیِ اپ (app.theme_<key>) هم در KV در دسترس‌اند
+NEUTRAL_KEYS = tuple(NEUTRAL_LIGHT.keys())
+
+
+def neutral(key, dark=None):
+    """رنگ خنثیِ متناظر با حالت روشن/تیره را برمی‌گرداند."""
+    if dark is None:
+        try:
+            _app = App.get_running_app()
+            dark = bool(_app.dark_mode) if _app else False
+        except Exception:
+            dark = False
+    pal = NEUTRAL_DARK if dark else NEUTRAL_LIGHT
+    return tuple(pal.get(key, NEUTRAL_LIGHT.get(key, (1, 1, 1, 1))))
+
 
 # ---------------------------------------------------------------------------
 # دسته‌بندی‌ها
@@ -1289,7 +1365,12 @@ def get_device_id(username: str = "") -> str:
     try:
         if username:
             folder = account_folder(username)
-            if folder.startswith("content://"):
+            if _is_saf(folder):
+                if _saf_ready(folder):
+                    existing = (_saf_read_text(folder, "device_id.txt") or "").strip()
+                    if existing:
+                        return existing
+                    _saf_write_text(folder, "device_id.txt", base_id)
                 return base_id
             dev_file = os.path.join(folder, "device_id.txt")
         else:
@@ -1379,6 +1460,210 @@ ACCOUNT_FILENAME = "account.json"
 _LOCAL_ACCOUNTS_DIR = os.path.join(SAVE_DIR, "accounts")
 
 
+# ---------------------------------------------------------------------------
+# SAF (Storage Access Framework) — نوشتن/خواندن واقعی داخل پوشه‌ی انتخابیِ کاربر
+# روی اندروید. اگر pyjnius/کلاس‌های اندروید در دسترس نباشند (دسکتاپ)، همه‌ی
+# توابع None/False برمی‌گردانند و caller به رفتار قبلی (fallback محلی) برمی‌گردد.
+# ---------------------------------------------------------------------------
+_SAF_CACHE = {}
+
+
+def _is_saf(path: str) -> bool:
+    return bool(path) and str(path).startswith("content://")
+
+
+def _saf_env():
+    """(autoclass, cast, activity, resolver, DocumentFile, Uri) یا None."""
+    if "env" in _SAF_CACHE:
+        return _SAF_CACHE["env"]
+    env = None
+    try:
+        from jnius import autoclass, cast  # type: ignore
+        PythonActivity = autoclass("org.kivy.android.PythonActivity")
+        activity = PythonActivity.mActivity
+        resolver = activity.getContentResolver()
+        Uri = autoclass("android.net.Uri")
+        DocumentFile = None
+        for cls in ("androidx.documentfile.provider.DocumentFile",
+                    "android.support.v4.provider.DocumentFile"):
+            try:
+                DocumentFile = autoclass(cls)
+                break
+            except Exception:
+                continue
+        if DocumentFile is not None:
+            env = (autoclass, cast, activity, resolver, DocumentFile, Uri)
+    except Exception as e:
+        print(f"[SAF][env] unavailable: {type(e).__name__}: {e}")
+        env = None
+    _SAF_CACHE["env"] = env
+    return env
+
+
+def _saf_doc(uri_str: str):
+    """DocumentFile مربوط به یک tree/document URI."""
+    env = _saf_env()
+    if not env or not _is_saf(uri_str):
+        return None
+    _autoclass, _cast, activity, _resolver, DocumentFile, Uri = env
+    uri = Uri.parse(uri_str)
+    doc = None
+    try:
+        doc = DocumentFile.fromTreeUri(activity, uri)
+    except Exception:
+        doc = None
+    if doc is None:
+        try:
+            doc = DocumentFile.fromSingleUri(activity, uri)
+        except Exception:
+            doc = None
+    return doc
+
+
+def _saf_find_child(parent_doc, name: str):
+    try:
+        child = parent_doc.findFile(name)
+        return child
+    except Exception:
+        return None
+
+
+def _saf_ensure_dir(parent_uri: str, name: str) -> str:
+    """ساخت (یا پیداکردنِ) زیرپوشه داخل tree URI. URI پوشه یا "" برمی‌گرداند."""
+    doc = _saf_doc(parent_uri)
+    if doc is None:
+        return ""
+    try:
+        child = _saf_find_child(doc, name)
+        if child is None or not child.isDirectory():
+            child = doc.createDirectory(name)
+        if child is None:
+            return ""
+        return child.getUri().toString()
+    except Exception as e:
+        print(f"[SAF][mkdir] {type(e).__name__}: {e}")
+        return ""
+
+
+def _saf_ensure_path(base_uri: str, *names) -> str:
+    cur = base_uri
+    for n in names:
+        if not n:
+            continue
+        cur = _saf_ensure_dir(cur, n)
+        if not cur:
+            return ""
+    return cur
+
+
+def _saf_write_bytes(dir_uri: str, filename: str, data: bytes,
+                     mime: str = "application/octet-stream") -> str:
+    """ساخت/بازنویسی فایل داخل پوشه‌ی SAF. URI فایل یا "" برمی‌گرداند."""
+    env = _saf_env()
+    doc = _saf_doc(dir_uri)
+    if not env or doc is None:
+        return ""
+    _autoclass, _cast, _activity, resolver, _DocumentFile, _Uri = env
+    try:
+        child = _saf_find_child(doc, filename)
+        if child is None:
+            child = doc.createFile(mime, filename)
+        if child is None:
+            return ""
+        stream = resolver.openOutputStream(child.getUri(), "wt")
+        if stream is None:
+            return ""
+        try:
+            stream.write(bytearray(data))
+            stream.flush()
+        finally:
+            try:
+                stream.close()
+            except Exception:
+                pass
+        return child.getUri().toString()
+    except Exception as e:
+        print(f"[SAF][write] {type(e).__name__}: {e}")
+        return ""
+
+
+def _saf_write_text(dir_uri: str, filename: str, text: str,
+                    mime: str = "text/plain") -> str:
+    return _saf_write_bytes(dir_uri, filename, (text or "").encode("utf-8"), mime)
+
+
+def _saf_read_bytes(dir_uri: str, filename: str):
+    env = _saf_env()
+    doc = _saf_doc(dir_uri)
+    if not env or doc is None:
+        return None
+    _autoclass, _cast, _activity, resolver, _DocumentFile, _Uri = env
+    try:
+        child = _saf_find_child(doc, filename)
+        if child is None or not child.exists():
+            return None
+        stream = resolver.openInputStream(child.getUri())
+        if stream is None:
+            return None
+        out = bytearray()
+        try:
+            buf = bytearray(8192)
+            while True:
+                n = stream.read(buf)
+                if n is None or n <= 0:
+                    break
+                out.extend(buf[:n])
+        finally:
+            try:
+                stream.close()
+            except Exception:
+                pass
+        return bytes(out)
+    except Exception as e:
+        print(f"[SAF][read] {type(e).__name__}: {e}")
+        return None
+
+
+def _saf_read_text(dir_uri: str, filename: str) -> str:
+    data = _saf_read_bytes(dir_uri, filename)
+    if data is None:
+        return ""
+    try:
+        return data.decode("utf-8")
+    except Exception:
+        return ""
+
+
+def _saf_copy_into(dir_uri: str, filename: str, src_path: str) -> str:
+    """کپی یک فایل محلی (عکس آواتار/خاطره) داخل پوشه‌ی SAF."""
+    try:
+        with open(src_path, "rb") as f:
+            data = f.read()
+    except Exception as e:
+        print(f"[SAF][copy] read src: {e}")
+        return ""
+    ext = (os.path.splitext(filename)[1] or "").lower()
+    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".webp": "image/webp", ".gif": "image/gif"}.get(ext, "application/octet-stream")
+    return _saf_write_bytes(dir_uri, filename, data, mime)
+
+
+def _saf_delete_tree(dir_uri: str) -> bool:
+    doc = _saf_doc(dir_uri)
+    if doc is None:
+        return False
+    try:
+        return bool(doc.delete())
+    except Exception as e:
+        print(f"[SAF][delete] {type(e).__name__}: {e}")
+        return False
+
+
+def _saf_ready(uri: str) -> bool:
+    """آیا واقعاً می‌توان روی این URI با SAF کار کرد؟"""
+    return _is_saf(uri) and _saf_doc(uri) is not None
+
+
 def make_user_folder(base_path: str, username: str) -> str:
     """داخل مسیر انتخاب‌شده یک پوشه به نام کاربر می‌سازد و مسیر کامل را برمی‌گرداند.
 
@@ -1388,7 +1673,14 @@ def make_user_folder(base_path: str, username: str) -> str:
     """
     if not base_path or not username:
         return base_path or ""
-    if base_path.startswith("content://"):
+    if _is_saf(base_path):
+        # SAF: واقعاً یک زیرپوشه به نام کاربر داخل درختِ انتخابی ساخته می‌شود.
+        child = _saf_ensure_dir(base_path, username)
+        if child:
+            # زیرپوشه‌های استاندارد اکانت هم همان‌جا ساخته می‌شوند.
+            _saf_ensure_dir(child, "avatar")
+            _saf_ensure_dir(child, "memories")
+            return child
         return base_path.rstrip("/") + "/" + username
     try:
         full = os.path.join(base_path, username)
@@ -1525,7 +1817,14 @@ def register_account_folder(username: str, folder: str):
 def read_account_file(folder: str) -> dict:
     """خواندن account.json از یک پوشه (بدون نیاز به ایندکس)."""
     try:
-        if not folder or folder.startswith("content://"):
+        if not folder:
+            return {}
+        if _is_saf(folder):
+            raw = _saf_read_text(folder, ACCOUNT_FILENAME)
+            if raw:
+                data = json.loads(raw)
+                if isinstance(data, dict) and data.get("username"):
+                    return data
             return {}
         path = os.path.join(folder, ACCOUNT_FILENAME)
         if os.path.exists(path):
@@ -1544,12 +1843,19 @@ def write_account_file(acc: dict) -> str:
     if not username:
         return ""
     folder = (acc.get("storage_folder") or "").strip() or account_folder(username)
-    if folder.startswith("content://"):
-        # SAF: نوشتن مستقیم فایل روی content:// با os پشتیبانی نمی‌شود
-        # (نیاز به DocumentsContract/DocumentFile دارد). تا آن زمان رکورد در
-        # پوشه‌ی محلیِ مخصوص همین اکانت نگه‌داری می‌شود.
-        print("[write_account_file] هشدار: مسیر SAF قابل نوشتن مستقیم نیست؛ "
-              "از پوشه‌ی محلی اکانت استفاده می‌شود.")
+    if _is_saf(folder):
+        # SAF: فایل واقعاً داخل همان پوشه‌ی انتخابیِ کاربر نوشته می‌شود.
+        if _saf_ready(folder):
+            try:
+                acc["storage_folder"] = folder
+                payload = json.dumps(acc, ensure_ascii=False, indent=2)
+                if _saf_write_text(folder, ACCOUNT_FILENAME, payload, "application/json"):
+                    return folder
+                print("[write_account_file] نوشتن SAF ناموفق بود؛ پوشه‌ی محلی استفاده می‌شود.")
+            except Exception as e:
+                print(f"[write_account_file][SAF] {type(e).__name__}: {e}")
+        else:
+            print("[write_account_file] SAF در دسترس نیست؛ از پوشه‌ی محلی اکانت استفاده می‌شود.")
         folder = default_account_folder(username)
     try:
         os.makedirs(folder, exist_ok=True)
@@ -1744,10 +2050,11 @@ def create_account(username: str, password: str, age: int, gender: str,
     if username in db["accounts"]:
         return False, "این نام کاربری قبلاً ثبت شده؛ از صفحه ورود استفاده کن"
     folder = make_user_folder(storage_path, username) if storage_path else ""
-    if not folder or folder.startswith("content://"):
-        if folder.startswith("content://"):
-            print("[create_account] هشدار: پوشه‌ی SAF مستقیماً قابل نوشتن نیست؛ "
-                  "داده‌ها در پوشه‌ی محلی اکانت ذخیره می‌شوند.")
+    if _is_saf(folder) and not _saf_ready(folder):
+        print("[create_account] هشدار: SAF در دسترس نیست؛ "
+              "داده‌ها در پوشه‌ی محلی اکانت ذخیره می‌شوند.")
+        folder = ""
+    if not folder:
         folder = default_account_folder(username)
         try:
             os.makedirs(folder, exist_ok=True)
@@ -1853,7 +2160,13 @@ def write_recovery_key_file(username: str, key: str) -> str:
     if not username or not key:
         return ""
     folder = account_folder(username)
-    if not folder or folder.startswith("content://"):
+    if _is_saf(folder):
+        if _saf_ready(folder):
+            uri = _saf_write_text(folder, RECOVERY_FILENAME, key)
+            if uri:
+                return uri
+        folder = default_account_folder(username)
+    if not folder:
         folder = default_account_folder(username)
     try:
         os.makedirs(folder, exist_ok=True)
@@ -2058,8 +2371,11 @@ def delete_account(username: str) -> tuple:
 
     # سپس کل پوشه‌ی اختصاصی کاربر را حذف کن
     try:
-        if folder.startswith("content://"):
-            print(f"[delete_account] هشدار: حذف خودکار پوشه‌ی SAF پشتیبانی نمی‌شود -> {folder}")
+        if _is_saf(folder):
+            if _saf_delete_tree(folder):
+                print(f"[delete_account] پوشه‌ی SAF حذف شد -> {folder}")
+            else:
+                print(f"[delete_account] هشدار: حذف پوشه‌ی SAF ناموفق بود -> {folder}")
         else:
             f_norm = os.path.normpath(folder)
             try:
@@ -2091,7 +2407,11 @@ def _user_subdir(username: str, sub: str) -> tuple:
     ممکن نیست و is_saf=True برگردانده می‌شود.
     """
     sf = account_folder(username)
-    if sf.startswith("content://"):
+    if _is_saf(sf):
+        if _saf_ready(sf):
+            child = _saf_ensure_dir(sf, sub)
+            if child:
+                return child, True
         return sf.rstrip("/") + "/" + sub, True
     return os.path.join(sf, sub), False
 
@@ -2109,13 +2429,16 @@ def process_and_save_avatar(src_path: str, username: str) -> tuple:
         target_dir, is_saf = _user_subdir(username, "avatar")
         fname = f"avatar_{safe}{ext}"
         if is_saf:
-            # SAF (content://): کپی مستقیم فایل با shutil ممکن نیست و نیاز به
-            # DocumentsContract/DocumentFile دارد. تا آن زمان، عکس در پوشه‌ی
-            # محلیِ مخصوصِ همین اکانت ذخیره می‌شود (نه در مسیر سراسری مشترک).
+            # SAF: عکس واقعاً داخل پوشه‌ی انتخابیِ کاربر (…/<username>/avatar)
+            # نوشته می‌شود. یک نسخه‌ی محلی هم نگه داشته می‌شود تا ویجت Image
+            # بتواند آن را نمایش دهد (Kivy نمی‌تواند content:// را رندر کند).
+            saf_uri = _saf_copy_into(target_dir, fname, src_path)
             local_dir = os.path.join(default_account_folder(username), "avatar")
             os.makedirs(local_dir, exist_ok=True)
             dest_local = os.path.join(local_dir, fname)
             shutil.copyfile(src_path, dest_local)
+            if not saf_uri:
+                print("[avatar][SAF] نوشتن در پوشه‌ی انتخابی ناموفق بود؛ فقط نسخه‌ی محلی ذخیره شد.")
             return dest_local, "ok"
         os.makedirs(target_dir, exist_ok=True)
         dest = os.path.join(target_dir, fname)
@@ -2154,7 +2477,10 @@ def save_memory_image(username: str, category_id: str, idea_title: str, src_path
         fname = f"mem_{safe_user}_{key}{ext}"
         target_dir, is_saf = _user_subdir(username, "memories")
         if is_saf:
-            # SAF: مانند آواتار، در پوشه‌ی محلیِ مخصوص همین اکانت ذخیره می‌شود.
+            # SAF: عکس خاطره واقعاً داخل …/<username>/memories نوشته می‌شود و
+            # یک نسخه‌ی محلی برای نمایش در Image نگه داشته می‌شود.
+            if not _saf_copy_into(target_dir, fname, src_path):
+                print("[memory][SAF] نوشتن در پوشه‌ی انتخابی ناموفق بود؛ فقط نسخه‌ی محلی ذخیره شد.")
             local_dir = os.path.join(default_account_folder(username), "memories")
             os.makedirs(local_dir, exist_ok=True)
             dest = os.path.join(local_dir, fname)
@@ -2225,7 +2551,7 @@ KV = """
 <RootCard@BoxLayout>:
     canvas.before:
         Color:
-            rgba: 1, 1, 1, 0.92
+            rgba: app.theme_surface_92
         RoundedRectangle:
             pos: self.pos
             size: self.size
@@ -2273,6 +2599,9 @@ KV = """
         pos: root.pos
         size: root.size
         do_scroll_x: False
+        # لرزشِ کوچکِ انگشت نباید به‌عنوان اسکرول تفسیر شود (لینک فراموشی رمز)
+        scroll_distance: dp(28)
+        scroll_timeout: 250
         BoxLayout:
             orientation: "vertical"
             size_hint_y: None
@@ -2315,7 +2644,7 @@ KV = """
                         text: root.subtitle_text
                         font_name: app.font_name
                         font_size: sp(13)
-                        color: 0.55, 0.5, 0.52, 1
+                        color: app.theme_text_secondary
                         size_hint_y: None
                         height: dp(24)
                         halign: "center"
@@ -2343,8 +2672,8 @@ KV = """
                             font_size: sp(16)
                             multiline: False
                             background_color: 0, 0, 0, 0
-                            foreground_color: 0.3, 0.25, 0.27, 1
-                            hint_text_color: 0.65, 0.6, 0.62, 1
+                            foreground_color: app.theme_text_primary
+                            hint_text_color: app.theme_text_hint
                             cursor_color: 0.8, 0.5, 0.6, 1
                             padding: dp(14), dp(12)
 
@@ -2368,8 +2697,8 @@ KV = """
                             font_size: sp(16)
                             multiline: False
                             background_color: 0, 0, 0, 0
-                            foreground_color: 0.3, 0.25, 0.27, 1
-                            hint_text_color: 0.65, 0.6, 0.62, 1
+                            foreground_color: app.theme_text_primary
+                            hint_text_color: app.theme_text_hint
                             cursor_color: 0.8, 0.5, 0.6, 1
                             padding: dp(14), dp(12)
 
@@ -2393,8 +2722,8 @@ KV = """
                             multiline: False
                             password: True
                             background_color: 0, 0, 0, 0
-                            foreground_color: 0.3, 0.25, 0.27, 1
-                            hint_text_color: 0.65, 0.6, 0.62, 1
+                            foreground_color: app.theme_text_primary
+                            hint_text_color: app.theme_text_hint
                             cursor_color: 0.8, 0.5, 0.6, 1
                             padding: dp(14), dp(12)
                         EyeToggleButton:
@@ -2435,7 +2764,7 @@ KV = """
                             font_name: app.font_name
                             font_size: sp(13)
                             bold: True
-                            color: (app.theme_title if root.parent_screen and getattr(root.parent_screen, "selected_storage_path", "") else (0.55, 0.5, 0.52, 1))
+                            color: (app.theme_title if root.parent_screen and getattr(root.parent_screen, "selected_storage_path", "") else (app.theme_text_secondary))
                             size_hint_y: None
                             height: dp(24)
                             halign: "right"
@@ -2448,7 +2777,7 @@ KV = """
                             text: (root.parent_screen.selected_storage_path if root.parent_screen and getattr(root.parent_screen, "selected_storage_path", "") else app.t_storage_none)
                             font_name: app.font_name
                             font_size: sp(11)
-                            color: 0.55, 0.5, 0.52, 1
+                            color: app.theme_text_secondary
                             size_hint_y: None
                             height: dp(20)
                             halign: "right"
@@ -2465,7 +2794,7 @@ KV = """
                         text: app.t_gender
                         font_name: app.font_name
                         font_size: sp(13)
-                        color: 0.55, 0.5, 0.52, 1
+                        color: app.theme_text_secondary
                         size_hint_y: None
                         height: dp(18)
                         halign: "center"
@@ -2503,7 +2832,7 @@ KV = """
                                 text: app.t_age
                                 font_name: app.font_name
                                 font_size: sp(13)
-                                color: 0.55, 0.5, 0.52, 1
+                                color: app.theme_text_secondary
                                 halign: "right"
                                 text_size: self.size
                                 valign: "middle"
@@ -2965,7 +3294,7 @@ KV = """
     spacing: dp(6)
     canvas.before:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: app.theme_surface
         RoundedRectangle:
             pos: self.pos
             size: self.size
@@ -2986,7 +3315,7 @@ KV = """
             font_name: app.font_name
             font_size: sp(15)
             bold: True
-            color: 0.23, 0.13, 0.16, 1
+            color: app.theme_text_strong
             halign: "right"
             valign: "middle"
             text_size: self.size
@@ -3004,7 +3333,7 @@ KV = """
         text: root.desc_text
         font_name: app.font_name
         font_size: sp(12)
-        color: 0.48, 0.38, 0.40, 1
+        color: app.theme_text_body
         halign: "right"
         valign: "top"
         text_size: self.size
@@ -3210,7 +3539,7 @@ KV = """
                     raw_text: ""
                     font_name: app.font_name
                     font_size: sp(14)
-                    color: 0.35, 0.30, 0.32, 1
+                    color: app.theme_text_primary
                     size_hint_y: None
                     height: self.texture_size[1] + dp(8)
                     halign: "right"
@@ -3291,7 +3620,7 @@ KV = """
                     text: ""
                     font_name: app.font_name
                     font_size: sp(14)
-                    color: 0.35, 0.30, 0.32, 1
+                    color: app.theme_text_primary
                     size_hint_y: None
                     height: dp(28)
                     halign: "right"
@@ -3302,7 +3631,7 @@ KV = """
                     text: ""
                     font_name: app.font_name
                     font_size: sp(14)
-                    color: 0.35, 0.30, 0.32, 1
+                    color: app.theme_text_primary
                     size_hint_y: None
                     height: dp(28)
                     halign: "right"
@@ -3333,7 +3662,7 @@ KV = """
                         font_size: sp(16)
                         multiline: False
                         background_color: 0, 0, 0, 0
-                        foreground_color: 0.3, 0.25, 0.27, 1
+                        foreground_color: app.theme_text_primary
                         cursor_color: 0.8, 0.5, 0.6, 1
                         padding: dp(14), dp(12)
                 Label:
@@ -3363,8 +3692,8 @@ KV = """
                         multiline: False
                         password: True
                         background_color: 0, 0, 0, 0
-                        foreground_color: 0.3, 0.25, 0.27, 1
-                        hint_text_color: 0.65, 0.6, 0.62, 1
+                        foreground_color: app.theme_text_primary
+                        hint_text_color: app.theme_text_hint
                         cursor_color: 0.8, 0.5, 0.6, 1
                         padding: dp(14), dp(12)
                     EyeToggleButton:
@@ -3800,8 +4129,54 @@ class ThemeToggleButton(ButtonBehavior, Image):
 
 
 class LinkLabel(ButtonBehavior, Label):
-    """لیبل قابل کلیک با ناحیه‌ی لمسی قطعی (مستقل از bind شرطی height/opacity)."""
-    pass
+    """لیبل قابل کلیک با ناحیه‌ی لمسی قطعی.
+
+    کل مستطیلِ لیبل (نه فقط دور حروف) لمس‌پذیر است و لمس با grab گرفته می‌شود تا
+    ScrollViewِ والد نتواند لرزشِ کوچکِ انگشت را به‌عنوان اسکرول تفسیر کند و جلوی
+    on_release را بگیرد (همان الگوی RTLTextInput).
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.halign = kwargs.get("halign", "center")
+        self.valign = kwargs.get("valign", "middle")
+        # تضمین اینکه ناحیه‌ی متن دقیقاً برابر کل مستطیل ویجت باشد
+        self.bind(size=self._sync_text_size, pos=self._sync_text_size)
+        self._sync_text_size()
+
+    def _sync_text_size(self, *a):
+        try:
+            self.text_size = self.size
+        except Exception:
+            pass
+
+    def _touchable(self) -> bool:
+        return (not self.disabled) and self.opacity > 0 and self.height > 1
+
+    def on_touch_down(self, touch):
+        if self._touchable() and self.collide_point(*touch.pos):
+            touch.grab(self)
+            self._pressed_inside = True
+            return True
+        return super().on_touch_down(touch)
+
+    def on_touch_move(self, touch):
+        if touch.grab_current is self:
+            return True
+        return super().on_touch_move(touch)
+
+    def on_touch_up(self, touch):
+        if touch.grab_current is self:
+            touch.ungrab(self)
+            if getattr(self, "_pressed_inside", False):
+                self._pressed_inside = False
+                if self._touchable() and self.collide_point(*touch.pos):
+                    try:
+                        self.dispatch("on_release")
+                    except Exception:
+                        pass
+            return True
+        return super().on_touch_up(touch)
 
 
 class IconImageButton(ButtonBehavior, Image):
@@ -3943,7 +4318,7 @@ class ProfileAvatarButton(ButtonBehavior, BoxLayout):
         with self.canvas.before:
             Color(*ring)
             Ellipse(pos=self.pos, size=self.size)
-            Color(0.96, 0.93, 0.94, 1)
+            Color(*neutral("avatar_inner"))
             pad = dp(4)
             Ellipse(pos=(self.x + pad, self.y + pad),
                     size=(self.width - 2 * pad, self.height - 2 * pad))
@@ -3964,6 +4339,9 @@ class ProfileAvatarButton(ButtonBehavior, BoxLayout):
             self.add_widget(box)
 
     def _redraw(self, *a):
+        self._draw_ring()
+
+    def _refresh_theme(self, *a):
         self._draw_ring()
 
 
@@ -4003,14 +4381,14 @@ class PhotoSourceMenu(ModalView):
             self._sh2 = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
             Color(0, 0, 0, 0.16)
             self._sh = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
-            Color(1, 1, 1, 0.28)
+            Color(*neutral("surface_glass"))
             self._bg = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
-            Color(1, 1, 1, 0.55)
+            Color(*neutral("glass_border"))
             self._brd = Line(rounded_rectangle=(root.x, root.y, root.width, root.height, dp(26)), width=1.4)
         root.bind(pos=self._upd_bg, size=self._upd_bg)
 
         title = Label(text=fa("انتخاب عکس پروفایل"), font_name=APP_FONT,
-                      font_size="16sp", bold=True, color=(0.25, 0.22, 0.24, 1),
+                      font_size="16sp", bold=True, color=neutral("text_primary"),
                       size_hint_y=None, height=dp(30), halign="center")
         title.bind(size=title.setter("text_size"))
         root.add_widget(title)
@@ -4057,6 +4435,13 @@ class PhotoSourceMenu(ModalView):
         btn._bg.pos = btn.pos
         btn._bg.size = btn.size
 
+    def _refresh_theme(self, *a):
+        try:
+            self.clear_widgets()
+            self._build()
+        except Exception:
+            pass
+
     def _choose(self, source):
         self.dismiss()
         if self.on_pick:
@@ -4085,12 +4470,12 @@ class ConfirmDialog(ModalView):
     def _build(self):
         root = BoxLayout(orientation="vertical", padding=dp(18), spacing=dp(14))
         with root.canvas.before:
-            Color(0.20, 0.20, 0.23, 0.98)
+            Color(*neutral("dialog_bg"))
             self._bg = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(22)])
         root.bind(pos=lambda *a: self._upd(root), size=lambda *a: self._upd(root))
 
         msg = Label(text=fa(self.message), font_name=APP_FONT, font_size="15sp",
-                    bold=True, color=(0.95, 0.95, 0.96, 1), halign="center",
+                    bold=True, color=neutral("dialog_text"), halign="center",
                     valign="middle")
         msg.bind(size=msg.setter("text_size"))
         root.add_widget(msg)
@@ -4133,6 +4518,13 @@ class ConfirmDialog(ModalView):
             Color(*color)
             btn._bg = RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(14)])
 
+    def _refresh_theme(self, *a):
+        try:
+            self.clear_widgets()
+            self._build()
+        except Exception:
+            pass
+
     def _do_confirm(self):
         self.dismiss()
         if self.on_confirm:
@@ -4173,14 +4565,14 @@ class SettingsMenu(ModalView):
             self._sh2 = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(22)])
             Color(0, 0, 0, 0.16)
             self._sh = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(22)])
-            Color(0.22, 0.22, 0.25, 0.97)
+            Color(*neutral("dialog_bg"))
             self._bg = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(22)])
-            Color(0.45, 0.45, 0.50, 0.8)
+            Color(*neutral("dialog_border"))
             self._brd = Line(rounded_rectangle=(root.x, root.y, root.width, root.height, dp(22)), width=1.2)
         root.bind(pos=self._upd_bg, size=self._upd_bg)
 
         title = Label(text=fa("تنظیمات"), font_name=APP_FONT, font_size="16sp",
-                      bold=True, color=(0.95, 0.95, 0.96, 1),
+                      bold=True, color=neutral("dialog_text"),
                       size_hint_y=None, height=dp(26), halign="center")
         title.bind(size=title.setter("text_size"))
         root.add_widget(title)
@@ -4272,6 +4664,13 @@ class SettingsMenu(ModalView):
             Color(*color)
             btn._bg = RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(16)])
 
+    def _refresh_theme(self, *a):
+        try:
+            self.clear_widgets()
+            self._build()
+        except Exception:
+            pass
+
     def _do(self, callback):
         self.dismiss()
         if callback:
@@ -4310,14 +4709,14 @@ class PartnerMenu(ModalView):
             self._sh2 = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
             Color(0, 0, 0, 0.16)
             self._sh = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
-            Color(1, 1, 1, 0.30)
+            Color(*neutral("surface_glass"))
             self._bg = RoundedRectangle(pos=root.pos, size=root.size, radius=[dp(26)])
-            Color(1, 1, 1, 0.55)
+            Color(*neutral("glass_border"))
             self._brd = Line(rounded_rectangle=(root.x, root.y, root.width, root.height, dp(26)), width=1.4)
         root.bind(pos=self._upd_bg, size=self._upd_bg)
 
         title = Label(text=fa("همدم"), font_name=APP_FONT, font_size="20sp",
-                      bold=True, color=(0.25, 0.22, 0.24, 1),
+                      bold=True, color=neutral("text_primary"),
                       size_hint_y=None, height=dp(34), halign="center")
         title.bind(size=title.setter("text_size"))
         root.add_widget(title)
@@ -4329,7 +4728,7 @@ class PartnerMenu(ModalView):
         self.code_box = BoxLayout(orientation="horizontal", size_hint_y=None,
                                   height=dp(54), spacing=dp(6), padding=[dp(12), dp(6)])
         with self.code_box.canvas.before:
-            Color(1, 1, 1, 0.55)
+            Color(*neutral("surface_soft"))
             self.code_box._bg = RoundedRectangle(pos=self.code_box.pos,
                                                  size=self.code_box.size, radius=[dp(16)])
         self.code_box.bind(pos=lambda *a: self._upd_simple(self.code_box),
@@ -4337,7 +4736,7 @@ class PartnerMenu(ModalView):
 
         self.code_label = Label(text=fa("کد اینجا نمایش داده می‌شود"),
                                 font_name=APP_FONT, font_size="15sp", bold=True,
-                                color=(0.3, 0.27, 0.29, 1), halign="center",
+                                color=neutral("text_primary"), halign="center",
                                 valign="middle")
         self.code_label.bind(size=self.code_label.setter("text_size"))
 
@@ -4358,14 +4757,14 @@ class PartnerMenu(ModalView):
         root.add_widget(self.code_box)
 
         connect_title = Label(text=fa("محل اتصال همدمت"), font_name=APP_FONT,
-                              font_size="13sp", color=(0.35, 0.32, 0.34, 1),
+                              font_size="13sp", color=neutral("text_secondary"),
                               size_hint_y=None, height=dp(22), halign="center")
         connect_title.bind(size=connect_title.setter("text_size"))
         root.add_widget(connect_title)
 
         paste_wrap = BoxLayout(size_hint_y=None, height=dp(50), padding=[dp(8), dp(4)])
         with paste_wrap.canvas.before:
-            Color(1, 1, 1, 0.55)
+            Color(*neutral("surface_soft"))
             paste_wrap._bg = RoundedRectangle(pos=paste_wrap.pos,
                                               size=paste_wrap.size, radius=[dp(16)])
         paste_wrap.bind(pos=lambda *a: self._upd_simple(paste_wrap),
@@ -4373,8 +4772,8 @@ class PartnerMenu(ModalView):
         self.paste_input = TextInput(hint_text=fa("کد همدم را اینجا پیست کن"),
                                      font_name=APP_FONT, font_size="15sp",
                                      multiline=False, background_color=(0, 0, 0, 0),
-                                     foreground_color=(0.3, 0.25, 0.27, 1),
-                                     hint_text_color=(0.55, 0.5, 0.52, 1),
+                                     foreground_color=neutral("text_primary"),
+                                     hint_text_color=neutral("text_hint"),
                                      cursor_color=(0.6, 0.4, 0.5, 1),
                                      halign="center", padding=[dp(8), dp(12)])
         paste_wrap.add_widget(self.paste_input)
@@ -4417,6 +4816,20 @@ class PartnerMenu(ModalView):
     def _upd_simple(self, w):
         w._bg.pos = w.pos
         w._bg.size = w.size
+
+    def _refresh_theme(self, *a):
+        try:
+            _code = self._generated_code
+            _pasted = self.paste_input.text if getattr(self, "paste_input", None) else ""
+            self.clear_widgets()
+            self._build()
+            self._generated_code = _code
+            if _code:
+                self.code_label.text = _code
+            if _pasted:
+                self.paste_input.text = _pasted
+        except Exception:
+            pass
 
     def _toast(self, text):
         show_themed_toast(text)
@@ -4509,6 +4922,15 @@ class ProfileMenuPopup(Popup):
         app = App.get_running_app()
         theme = app.current_theme if app else THEME_PINK
 
+        # ارتفاع داینامیک: با وجود همدم، بخش اطلاعات یک ردیف بیشتر دارد (rows=5)
+        # و محتوا از کادر گرد بیرون می‌زد (دکمه‌ی تنظیمات دیده نمی‌شد).
+        partner = get_partner_account(self.user.get("username", ""))
+        rows = 5 if partner else 4
+        _extra = dp(34) * (rows - 4)
+        _target_h = min(Window.height * 0.94, Window.height * 0.74 + _extra)
+        self.size_hint = (0.92, None)
+        self.height = _target_h
+
         root = BoxLayout(orientation="vertical", spacing=dp(12), padding=[dp(18), dp(18)])
         with root.canvas.before:
             Color(*theme["bg"])
@@ -4522,10 +4944,10 @@ class ProfileMenuPopup(Popup):
         setting_btn.size = (dp(46), dp(46))
         setting_btn.pos_hint = {"right": 1, "top": 1}
         with setting_btn.canvas.before:
-            Color(1, 1, 1, 0.55)
+            Color(*neutral("surface_soft"))
             setting_btn._glass_bg = RoundedRectangle(
                 pos=setting_btn.pos, size=setting_btn.size, radius=[dp(14)])
-            Color(1, 1, 1, 0.85)
+            Color(*neutral("glass_border"))
             setting_btn._glass_brd = Line(
                 rounded_rectangle=(setting_btn.x, setting_btn.y,
                                    setting_btn.width, setting_btn.height, dp(14)),
@@ -4548,7 +4970,6 @@ class ProfileMenuPopup(Popup):
         root.add_widget(top_row)
 
         # ── آواتار(ها) ──
-        partner = get_partner_account(self.user.get("username", ""))
         avatar_row = FloatLayout(size_hint_y=None, height=dp(120))
 
         if partner:
@@ -4577,7 +4998,7 @@ class ProfileMenuPopup(Popup):
 
         hint_text = "خورشید و ماه کنار هم 💞" if partner else "برای تغییر عکس روی دایره بزنید"
         hint = Label(text=fa(hint_text), font_name=APP_FONT,
-                     font_size="11sp", color=(0.6, 0.55, 0.57, 1),
+                     font_size="11sp", color=neutral("text_secondary"),
                      size_hint_y=None, height=dp(18), halign="center")
         hint.bind(size=hint.setter("text_size"))
         root.add_widget(hint)
@@ -4623,6 +5044,15 @@ class ProfileMenuPopup(Popup):
         root.add_widget(btn_row)
 
         self.content = root
+
+    def _refresh_theme(self, *a):
+        try:
+            _app = App.get_running_app()
+            _th = _app.current_theme if _app else THEME_PINK
+            self.background_color = (_th["bg"][0], _th["bg"][1], _th["bg"][2], 1)
+            self._build_content()
+        except Exception:
+            pass
 
     def _upd_root_bg(self, *a):
         self._root_bg.pos = self.content.pos
@@ -4789,7 +5219,7 @@ class ProfileMenuPopup(Popup):
         box = BoxLayout(orientation="vertical", spacing=dp(8),
                         padding=[dp(14), dp(12)], size_hint_y=None,
                         height=dp(30 * rows + 30))
-        color = (0.88, 0.94, 1.0, 1) if data.get("gender") == "male" else (1.0, 0.92, 0.95, 1)
+        color = neutral("info_male") if data.get("gender") == "male" else neutral("info_female")
         with box.canvas.before:
             Color(*color)
             RoundedRectangle(pos=box.pos, size=box.size, radius=[dp(18)])
@@ -4798,25 +5228,25 @@ class ProfileMenuPopup(Popup):
 
         gender_txt = "☀️ خورشید (پسر)" if data.get("gender") == "male" else "🌙 ماه (دختر)"
         g_lbl = Label(text=fa(gender_txt), font_name=APP_FONT, font_size="15sp", bold=True,
-                      color=(0.35, 0.30, 0.32, 1), halign="right",
+                      color=neutral("text_primary"), halign="right",
                       size_hint_y=None, height=dp(26))
         g_lbl.bind(size=g_lbl.setter("text_size"))
         box.add_widget(g_lbl)
 
         u_lbl = Label(text=fa(f"نام کاربری: {data.get('username','')}"), font_name=APP_FONT,
-                      font_size="13sp", color=(0.35, 0.30, 0.32, 1), halign="right",
+                      font_size="13sp", color=neutral("text_primary"), halign="right",
                       size_hint_y=None, height=dp(24))
         u_lbl.bind(size=u_lbl.setter("text_size"))
         box.add_widget(u_lbl)
 
         a_lbl = Label(text=fa(f"سن: {data.get('age','')}"), font_name=APP_FONT,
-                      font_size="13sp", color=(0.35, 0.30, 0.32, 1), halign="right",
+                      font_size="13sp", color=neutral("text_primary"), halign="right",
                       size_hint_y=None, height=dp(24))
         a_lbl.bind(size=a_lbl.setter("text_size"))
         box.add_widget(a_lbl)
 
         fn_lbl = Label(text=fa(f"نام و نام خانوادگی: {data.get('full_name','')}"), font_name=APP_FONT,
-                       font_size="13sp", color=(0.35, 0.30, 0.32, 1), halign="right",
+                       font_size="13sp", color=neutral("text_primary"), halign="right",
                        size_hint_y=None, height=dp(24))
         fn_lbl.bind(size=fn_lbl.setter("text_size"))
         box.add_widget(fn_lbl)
@@ -4824,7 +5254,7 @@ class ProfileMenuPopup(Popup):
         if partner:
             partner_txt = f"همدم: {partner.get('username','')}"
             hp_lbl = Label(text=fa(partner_txt), font_name=APP_FONT, font_size="13sp",
-                           bold=True, color=(0.5, 0.35, 0.45, 1), halign="right",
+                           bold=True, color=neutral("text_strong"), halign="right",
                            size_hint_y=None, height=dp(24))
             hp_lbl.bind(size=hp_lbl.setter("text_size"))
             box.add_widget(hp_lbl)
@@ -5059,7 +5489,7 @@ class IdeasScreen(Screen):
             empty = Label(
                 text=fa("خونه هیچی نداره، برو دنیا رو ببین!"),
                 font_name=APP_FONT, font_size="18sp", bold=True,
-                color=(0.23, 0.13, 0.16, 1),
+                color=neutral("text_strong"),
                 size_hint_y=None, height=dp(420),
                 halign="center", valign="middle",
             )
@@ -5441,9 +5871,9 @@ class IdeaDetailScreen(Screen):
 
         # کادر شیشه‌ای خاکستری
         with wrap.canvas.before:
-            Color(0.55, 0.55, 0.58, 0.32)
+            Color(*neutral("glass_grey"))
             wrap._bg = RoundedRectangle(pos=wrap.pos, size=wrap.size, radius=[dp(22)])
-            Color(1, 1, 1, 0.55)
+            Color(*neutral("glass_border"))
             wrap._brd = Line(rounded_rectangle=(wrap.x, wrap.y, wrap.width, wrap.height, dp(22)), width=1.4)
 
         def _upd(*a):
@@ -5467,7 +5897,7 @@ class IdeaDetailScreen(Screen):
         else:
             lbl = Label(text=fa("خاطره خود را اینجا بگذارید"),
                         font_name=APP_FONT, font_size="15sp", bold=True,
-                        color=(0.30, 0.28, 0.30, 1),
+                        color=neutral("text_primary"),
                         halign="center", valign="middle",
                         size_hint=(1, 1), pos_hint={"x": 0, "y": 0})
             lbl.bind(size=lbl.setter("text_size"))
@@ -5534,7 +5964,7 @@ class IdeaDetailScreen(Screen):
             if done:
                 _c = Color(0.231, 0.722, 0.216, 1)  # #3BB837
             else:
-                _c = Color(1, 1, 1, 0.95)
+                _c = Color(*neutral("surface"))
             _rr = RoundedRectangle(pos=wrap.pos, size=wrap.size, radius=[dp(18)])
             _bc = Color(0.231, 0.722, 0.216, 1)
             _line = Line(rounded_rectangle=(wrap.x, wrap.y, wrap.width, wrap.height, dp(18)), width=1.6)
@@ -5554,6 +5984,16 @@ class IdeaDetailScreen(Screen):
             btn.bind(on_release=lambda *a: self._mark_done())
         wrap.add_widget(btn)
         holder.add_widget(wrap)
+
+    def _refresh_theme(self, *a):
+        try:
+            self._build_memory_area()
+        except Exception:
+            pass
+        try:
+            self._build_done_button()
+        except Exception:
+            pass
 
     def _mark_done(self):
         app = App.get_running_app()
@@ -5956,8 +6396,8 @@ class DiaryEditor(RTLTextInput):
 # پس‌زمینه‌ی خط‌دار (کاغذ دفترچه) — یک BoxLayout با کنواس سفارشی
 # ---------------------------------------------------------------------------
 class DiaryPaper(BoxLayout):
-    line_color = ListProperty([0.80, 0.75, 0.60, 0.55])
-    paper_color = ListProperty([1.0, 0.99, 0.93, 1])
+    line_color = ListProperty(list(NEUTRAL_LIGHT["paper_line"]))
+    paper_color = ListProperty(list(NEUTRAL_LIGHT["paper"]))
     line_gap = NumericProperty(dp(28))
 
     def __init__(self, **kwargs):
@@ -6022,7 +6462,7 @@ class DiaryScreen(Screen):
         if not notes:
             box.add_widget(Label(text=self.empty_text or fa("هنوز نوتی نداری."),
                                  font_name=APP_FONT, font_size=dp(14),
-                                 color=(0.35, 0.30, 0.20, 1),
+                                 color=neutral("paper_sub"),
                                  size_hint_y=None, height=dp(60),
                                  halign="center"))
             return
@@ -6036,6 +6476,12 @@ class DiaryScreen(Screen):
                 parent_screen=self,
             )
             box.add_widget(row)
+
+    def _refresh_theme(self, *a):
+        try:
+            self.refresh_list()
+        except Exception:
+            pass
 
     def open_note(self, index):
         app = App.get_running_app()
@@ -6218,13 +6664,13 @@ DIARY_KV = """
     spacing: dp(8)
     canvas.before:
         Color:
-            rgba: 1, 0.99, 0.93, 1
+            rgba: app.theme_paper
         RoundedRectangle:
             pos: self.pos
             size: self.size
             radius: [dp(12),]
         Color:
-            rgba: 0.80, 0.72, 0.50, 0.55
+            rgba: app.theme_paper_line
         Line:
             rounded_rectangle: (self.x, self.y, self.width, self.height, dp(12))
             width: 1
@@ -6244,7 +6690,7 @@ DIARY_KV = """
             text: root.title_text
             font_name: app.diary_font
             font_size: sp(16)
-            color: 0.25, 0.20, 0.18, 1
+            color: app.theme_paper_text
             halign: 'right'
             valign: 'middle'
             text_size: self.size
@@ -6253,7 +6699,7 @@ DIARY_KV = """
             text: root.date_text
             font_name: app.font_name
             font_size: sp(11)
-            color: 0.55, 0.45, 0.30, 1
+            color: app.theme_paper_sub
             halign: 'right'
             valign: 'middle'
             text_size: self.size
@@ -6389,15 +6835,15 @@ DIARY_KV = """
             height: dp(44)
             background_normal: ''
             background_active: ''
-            background_color: 1, 1, 1, 0.5
-            foreground_color: 0.2, 0.15, 0.15, 1
+            background_color: app.theme_surface_soft
+            foreground_color: app.theme_paper_text
             padding: dp(10), dp(10), dp(10), dp(10)
             on_text: root.on_text_changed()
         DiaryPaper:
             id: paper
             orientation: 'vertical'
-            paper_color: 1.0, 0.99, 0.93, 1
-            line_color: 0.80, 0.72, 0.50, 0.45
+            paper_color: app.theme_paper
+            line_color: app.theme_paper_line
             DiaryEditor:
                 id: body_in
                 hint_text: root.body_hint
@@ -6483,8 +6929,8 @@ ADD_IDEA_KV = """
                         font_size: sp(15)
                         multiline: False
                         background_color: 0, 0, 0, 0
-                        foreground_color: 0.3, 0.25, 0.27, 1
-                        hint_text_color: 0.65, 0.6, 0.62, 1
+                        foreground_color: app.theme_text_primary
+                        hint_text_color: app.theme_text_hint
                         cursor_color: 0.8, 0.5, 0.6, 1
                         padding: dp(14), dp(12)
 
@@ -6515,8 +6961,8 @@ ADD_IDEA_KV = """
                         font_size: sp(14)
                         multiline: True
                         background_color: 0, 0, 0, 0
-                        foreground_color: 0.3, 0.25, 0.27, 1
-                        hint_text_color: 0.65, 0.6, 0.62, 1
+                        foreground_color: app.theme_text_primary
+                        hint_text_color: app.theme_text_hint
                         cursor_color: 0.8, 0.5, 0.6, 1
                         padding: dp(14), dp(12)
 
@@ -6530,7 +6976,7 @@ ADD_IDEA_KV = """
                         text: ""
                         font_name: app.font_name
                         font_size: sp(14)
-                        color: 0.3, 0.25, 0.27, 1
+                        color: app.theme_text_primary
                         background_normal: ""
                         background_color: 0, 0, 0, 0
                         on_release: root.open_cost_menu()
@@ -6547,7 +6993,7 @@ ADD_IDEA_KV = """
                         width: dp(90)
                         font_name: app.font_name
                         font_size: sp(14)
-                        color: 0.35, 0.30, 0.32, 1
+                        color: app.theme_text_primary
                         halign: "right"
                         valign: "middle"
                         text_size: self.size
@@ -6562,7 +7008,7 @@ ADD_IDEA_KV = """
                         text: ""
                         font_name: app.font_name
                         font_size: sp(14)
-                        color: 0.3, 0.25, 0.27, 1
+                        color: app.theme_text_primary
                         background_normal: ""
                         background_color: 0, 0, 0, 0
                         on_release: root.open_age_menu()
@@ -6579,7 +7025,7 @@ ADD_IDEA_KV = """
                         width: dp(90)
                         font_name: app.font_name
                         font_size: sp(14)
-                        color: 0.35, 0.30, 0.32, 1
+                        color: app.theme_text_primary
                         halign: "right"
                         valign: "middle"
                         text_size: self.size
@@ -6604,8 +7050,8 @@ ADD_IDEA_KV = """
                             font_size: sp(14)
                             multiline: False
                             background_color: 0, 0, 0, 0
-                            foreground_color: 0.3, 0.25, 0.27, 1
-                            hint_text_color: 0.65, 0.6, 0.62, 1
+                            foreground_color: app.theme_text_primary
+                            hint_text_color: app.theme_text_hint
                             cursor_color: 0.8, 0.5, 0.6, 1
                             padding: dp(14), dp(12)
                     Label:
@@ -6614,7 +7060,7 @@ ADD_IDEA_KV = """
                         width: dp(90)
                         font_name: app.font_name
                         font_size: sp(14)
-                        color: 0.35, 0.30, 0.32, 1
+                        color: app.theme_text_primary
                         halign: "right"
                         valign: "middle"
                         text_size: self.size
@@ -7125,8 +7571,8 @@ class SignupScreen(AuthBase):
         # ناچاراً در پوشه‌ی محلی اکانت ذخیره شده‌اند.
         try:
             sp = (d.get("storage_path", "") or "")
-            if sp.startswith("content://"):
-                self.show_toast(fa("این مسیر از نوع SAF است؛ داده‌ها فعلاً در حافظه‌ی داخلی برنامه ذخیره می‌شوند"))
+            if _is_saf(sp) and not _saf_ready(sp):
+                self.show_toast(fa("دسترسی به پوشه‌ی انتخابی ممکن نشد؛ داده‌ها در حافظه‌ی داخلی ذخیره شدند"))
         except Exception:
             pass
 
@@ -7392,7 +7838,7 @@ class CelebrationPopup(ModalView):
         with card.canvas.before:
             Color(0, 0, 0, 0.16)
             self._sh = RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(28)])
-            Color(1, 1, 1, 0.93)
+            self._bg_col = Color(*neutral("surface_92"))
             self._bg = RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(28)])
             Color(accent[0], accent[1], accent[2], 0.85)
             self._ln = Line(rounded_rectangle=(card.x, card.y, card.width, card.height, dp(28)),
@@ -7432,6 +7878,18 @@ class CelebrationPopup(ModalView):
         root.add_widget(card)
         self.add_widget(root)
         self.opacity = 0
+
+    def _refresh_theme(self, *a):
+        try:
+            self._bg_col.rgba = neutral("surface_92")
+        except Exception:
+            pass
+        try:
+            _app = App.get_running_app()
+            _t = (_app.current_theme if _app else THEME_WHITE)["title"]
+            self._lbl.color = (_t[0], _t[1], _t[2], 1)
+        except Exception:
+            pass
 
     # ---------------- انیمیشن‌ها ----------------
     def on_open(self):
@@ -7581,8 +8039,8 @@ FORGOT_KV = """
                     font_size: sp(15)
                     multiline: False
                     background_color: 0, 0, 0, 0
-                    foreground_color: 0.3, 0.25, 0.27, 1
-                    hint_text_color: 0.65, 0.6, 0.62, 1
+                    foreground_color: app.theme_text_primary
+                    hint_text_color: app.theme_text_hint
                     cursor_color: 0.8, 0.5, 0.6, 1
                     padding: dp(14), dp(14)
 
@@ -7640,9 +8098,9 @@ class ForgotPasswordScreen(Screen):
         holder.clear_widgets()
         wrap = BoxLayout(size_hint=(1, 1))
         with wrap.canvas.before:
-            self._check_color = Color(1, 1, 1, 0.98)
+            self._check_color = Color(*neutral("surface"))
             rr = RoundedRectangle(pos=wrap.pos, size=wrap.size, radius=[dp(16)])
-            Color(0.72, 0.68, 0.70, 0.9)
+            Color(*neutral("border"))
             ln = Line(rounded_rectangle=(wrap.x, wrap.y, wrap.width, wrap.height, dp(16)),
                       width=1.3)
 
@@ -7655,11 +8113,17 @@ class ForgotPasswordScreen(Screen):
         app = App.get_running_app()
         btn = Button(text=app.t_forgot_check, font_name=APP_FONT, font_size="16sp",
                      bold=True, background_normal="", background_down="",
-                     background_color=(0, 0, 0, 0), color=(0.25, 0.22, 0.24, 1))
+                     background_color=(0, 0, 0, 0), color=neutral("text_primary"))
         self._check_btn = btn
         btn.bind(on_release=lambda *a: self.check_key())
         wrap.add_widget(btn)
         holder.add_widget(wrap)
+
+    def _refresh_theme(self, *a):
+        try:
+            self._build_check_button()
+        except Exception:
+            pass
 
     def check_key(self):
         key = ""
@@ -7704,7 +8168,7 @@ class ForgotPasswordScreen(Screen):
         holder.opacity = 0
 
         lbl = Label(text=app.t_forgot_newpw, font_name=APP_FONT, font_size="14sp",
-                    bold=True, color=(0.35, 0.30, 0.32, 1),
+                    bold=True, color=neutral("text_primary"),
                     size_hint_y=None, height=dp(24),
                     halign="right", valign="middle")
         lbl.bind(size=lambda i, v: setattr(i, "text_size", v))
@@ -7719,7 +8183,7 @@ class ForgotPasswordScreen(Screen):
         pw = RTLTextInput(hint_text=app.t_forgot_newpw, font_name=APP_FONT,
                           font_size="15sp", multiline=False, password=True,
                           background_color=(0, 0, 0, 0),
-                          foreground_color=(0.3, 0.25, 0.27, 1),
+                          foreground_color=neutral("text_primary"),
                           hint_text_color=(0.65, 0.6, 0.62, 1),
                           cursor_color=(0.8, 0.5, 0.6, 1),
                           padding=(dp(14), dp(14)))
@@ -7804,6 +8268,23 @@ class LahzeSazApp(App):
     theme_bubble1 = ListProperty(list(THEME_WHITE["bubble1"]))
     theme_bubble2 = ListProperty(list(THEME_WHITE["bubble2"]))
     theme_cat_sub = ListProperty(list(THEME_WHITE["cat_sub"]))
+    theme_surface = ListProperty(list(NEUTRAL_LIGHT["surface"]))
+    theme_surface_92 = ListProperty(list(NEUTRAL_LIGHT["surface_92"]))
+    theme_surface_soft = ListProperty(list(NEUTRAL_LIGHT["surface_soft"]))
+    theme_surface_glass = ListProperty(list(NEUTRAL_LIGHT["surface_glass"]))
+    theme_glass_grey = ListProperty(list(NEUTRAL_LIGHT["glass_grey"]))
+    theme_glass_border = ListProperty(list(NEUTRAL_LIGHT["glass_border"]))
+    theme_text_primary = ListProperty(list(NEUTRAL_LIGHT["text_primary"]))
+    theme_text_secondary = ListProperty(list(NEUTRAL_LIGHT["text_secondary"]))
+    theme_text_body = ListProperty(list(NEUTRAL_LIGHT["text_body"]))
+    theme_text_strong = ListProperty(list(NEUTRAL_LIGHT["text_strong"]))
+    theme_text_hint = ListProperty(list(NEUTRAL_LIGHT["text_hint"]))
+    theme_border = ListProperty(list(NEUTRAL_LIGHT["border"]))
+    theme_divider = ListProperty(list(NEUTRAL_LIGHT["divider"]))
+    theme_paper = ListProperty(list(NEUTRAL_LIGHT["paper"]))
+    theme_paper_line = ListProperty(list(NEUTRAL_LIGHT["paper_line"]))
+    theme_paper_text = ListProperty(list(NEUTRAL_LIGHT["paper_text"]))
+    theme_paper_sub = ListProperty(list(NEUTRAL_LIGHT["paper_sub"]))
     current_theme = THEME_WHITE
     dark_mode = BooleanProperty(False)
     _theme_anim = None
@@ -8003,8 +8484,45 @@ class LahzeSazApp(App):
         sm.add_widget(DiaryNoteScreen(name="diary_note"))
         return sm
 
+    def neutral_color(self, key):
+        return neutral(key, bool(self.dark_mode))
+
+    def _apply_neutrals(self):
+        """رنگ‌های خنثی (پس‌زمینه/متن/بوردر) را با حالت روشن/تیره هماهنگ می‌کند."""
+        dark = bool(self.dark_mode)
+        for key in ("surface", "surface_92", "surface_soft", "surface_glass",
+                    "glass_grey", "glass_border", "text_primary", "text_secondary",
+                    "text_body", "text_strong", "text_hint", "border", "divider",
+                    "paper", "paper_line", "paper_text", "paper_sub"):
+            try:
+                setattr(self, "theme_" + key, list(neutral(key, dark)))
+            except Exception:
+                pass
+
+    def refresh_neutral_widgets(self, *a):
+        """ویجت‌هایی که با پایتون/canvas ساخته شده‌اند را با تمِ فعلی رفرش می‌کند."""
+        def _walk(w):
+            fn = getattr(w, "_refresh_theme", None)
+            if callable(fn):
+                try:
+                    fn()
+                except Exception:
+                    pass
+            for c in list(getattr(w, "children", []) or []):
+                _walk(c)
+        try:
+            for w in list(Window.children):
+                _walk(w)
+        except Exception:
+            pass
+
+    def on_dark_mode(self, *a):
+        self._apply_neutrals()
+        Clock.schedule_once(lambda dt: self.refresh_neutral_widgets(), 0)
+
     def set_theme(self, gender: str):
         dark = bool(self.dark_mode)
+        self._apply_neutrals()
         if gender == "male":
             target = THEME_BLUE_DARK if dark else THEME_BLUE
         elif gender == "female":
@@ -8013,6 +8531,7 @@ class LahzeSazApp(App):
             target = THEME_BLACK if dark else THEME_WHITE
         if target is self.current_theme:
             self._refresh_avatars()
+            Clock.schedule_once(lambda dt: self.refresh_neutral_widgets(), 0)
             return
         self.current_theme = target
         if self._theme_anim:
@@ -8032,14 +8551,22 @@ class LahzeSazApp(App):
         self._theme_anim = anim
         anim.start(self)
         Clock.schedule_once(lambda dt: setattr(Window, "clearcolor", target["window_bg"]), 0.22)
+        # رنگ دکمه‌های جنسیت باید با تمِ جدید هماهنگ شود — هم فوراً و هم پس از
+        # اعمال کاملِ انیمیشنِ تم.
         self._refresh_avatars()
+        Clock.schedule_once(lambda dt: self._refresh_avatars(), 0)
+        Clock.schedule_once(lambda dt: self._refresh_avatars(), 0.5)
+        # رفرشِ ویجت‌های پایتونی (پاپ‌آپ‌ها/کارت‌ها) تا رنگ‌های خنثی فوراً عوض شوند
+        self.refresh_neutral_widgets()
+        Clock.schedule_once(lambda dt: self.refresh_neutral_widgets(), 0)
+        Clock.schedule_once(lambda dt: self.refresh_neutral_widgets(), 0.5)
 
     def _refresh_avatars(self):
         for scr in ("login", "signup"):
             try:
-                s = self.root.gfet_screen(scr)
+                s = self.root.get_screen(scr)
                 s.ids.form.male_btn._draw_bg()
-                s.ids.form.femafole_btn._draw_bg()
+                s.ids.form.female_btn._draw_bg()
             except Exception:
                 pass
         try:
